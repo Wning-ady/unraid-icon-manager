@@ -1,10 +1,21 @@
-# Unraid Icon Manager
-
-中文主文档 · [English supplementary documentation](README.en.md)
-
-<p align="center"><img src="docs/icon.png" alt="Unraid Icon Manager 项目图标" width="150"></p>
-
-<p align="center"><img src="docs/screenshot.svg" alt="Unraid Icon Manager 管理界面预览" width="760"></p>
+<div align="center">
+  <img src="docs/icon.png" alt="Unraid Icon Manager 项目图标" width="150">
+  <h1>Unraid Icon Manager</h1>
+  <p><strong>让每一个 Unraid Docker 容器都有整齐、稳定、可回滚的图标。</strong></p>
+  <p>
+    <a href="https://github.com/Wning-ady/unraid-icon-manager/releases/latest"><img src="https://img.shields.io/github/v/release/Wning-ady/unraid-icon-manager?style=flat-square&label=release" alt="GitHub Release"></a>
+    <a href="https://hub.docker.com/r/waning/unraid-icon-manager"><img src="https://img.shields.io/docker/pulls/waning/unraid-icon-manager?style=flat-square&label=Docker%20pulls" alt="Docker Pulls"></a>
+    <a href="https://github.com/Wning-ady/unraid-icon-manager/actions/workflows/ci.yml"><img src="https://github.com/Wning-ady/unraid-icon-manager/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/Wning-ady/unraid-icon-manager?style=flat-square" alt="MIT License"></a>
+  </p>
+  <p>
+    中文主文档 · <a href="README.en.md">English supplementary documentation</a> ·
+    <a href="#完整-docker-compose-部署">Docker Compose 部署</a> ·
+    <a href="#升级与回滚">升级与回滚</a> ·
+    <a href="SECURITY.md">安全说明</a>
+  </p>
+  <img src="docs/screenshot.svg" alt="Unraid Icon Manager 管理界面预览" width="760">
+</div>
 
 > [!IMPORTANT]
 > **这是一个纯 AI 项目。**作者本人完全不会编程，只是有点强迫症，看到 Unraid 里有些容器没有图标就很难受，于是靠 AI 一点一点把这个工具做了出来。
@@ -62,15 +73,90 @@ docker pull waning/unraid-icon-manager:latest
 
 启动后访问 `http://你的_UNRAID_IP:8787`。也可将 [`unraid/template.xml`](unraid/template.xml) 复制到 `/boot/config/plugins/dockerMan/templates-user/`，在 **Add Container** 中选择 **unraid-icon-manager**，并在应用前填写两个 URL 变量。
 
-### Docker Compose 示例
+### 完整 Docker Compose 部署
 
-仓库已经提供 [`docker-compose.yml`](docker-compose.yml) 与 [`.env.example`](.env.example)。先复制配置，至少把 `YOUR_UNRAID_IP` 替换为真实 IP，再检查 Compose 展开结果：
+下面是可以直接复制使用的**完整配置**，与仓库中的 [`docker-compose.yml`](docker-compose.yml) 保持一致。先创建一个目录，将 YAML 保存为 `docker-compose.yml`：
+
+```yaml
+services:
+  unraid-icon-manager:
+    image: waning/unraid-icon-manager:${IMAGE_TAG:-latest}
+    container_name: unraid-icon-manager
+
+    ports:
+      - "${WEBUI_PORT:-8787}:8787"
+
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - ICON_HOST_ROOT=${ICON_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/icons}
+      - WALLPAPER_HOST_ROOT=${WALLPAPER_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/wallpapers}
+      - ICON_CACHE_DIR=/unraid/icon-cache
+      - ICON_CACHE_RAM_DIR=/unraid/icon-cache-ram
+      - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES:-5242880}
+      - MAX_WALLPAPER_BYTES=${MAX_WALLPAPER_BYTES:-31457280}
+      # 必须能被 Unraid 主机访问，不能填写 localhost 或容器名。
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env to this host's mapped URL}
+      # 填写 Unraid WebGUI 的 Docker 页面地址，自定义端口也要写入。
+      - UNRAID_DOCKER_URL=${UNRAID_DOCKER_URL:?Set UNRAID_DOCKER_URL in .env to the Unraid Docker page}
+
+    volumes:
+      # 数据库、图库、审计记录和备份。
+      - ${CONFIG_HOST_DIR:-/mnt/user/appdata/unraid-icon-manager}:/config
+      # Unraid Docker Manager 用户模板。
+      - /boot/config/plugins/dockerMan/templates-user:/unraid/templates-user
+      # Unraid 持久图标缓存与内存图标缓存。
+      - /var/lib/docker/unraid/images:/unraid/icon-cache
+      - /usr/local/emhttp/state/plugins/dynamix.docker.manager/images:/unraid/icon-cache-ram
+      # 只读取当前 Docker 容器信息。
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    security_opt:
+      - no-new-privileges:true
+
+    restart: unless-stopped
+```
+
+在同一目录创建 `.env`。把两个 `YOUR_UNRAID_IP` 改成你的真实 Unraid IP；如果 WebUI 端口不是 `5000`，也要同步修改：
+
+```dotenv
+# 镜像版本：latest 跟随最新版；也可以固定为 v0.1.12。
+IMAGE_TAG=latest
+
+# 本工具 Web 管理界面的主机端口。
+WEBUI_PORT=8787
+TZ=Asia/Shanghai
+
+# 持久化根目录及其图库子目录。
+CONFIG_HOST_DIR=/mnt/user/appdata/unraid-icon-manager
+ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
+WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
+
+# 单个图标 5 MiB，单张壁纸 30 MiB，单位都是字节。
+MAX_UPLOAD_BYTES=5242880
+MAX_WALLPAPER_BYTES=31457280
+
+# 必须能被 Unraid 主机自身访问，端口必须与 WEBUI_PORT 一致。
+PUBLIC_BASE_URL=http://YOUR_UNRAID_IP:8787
+
+# 点击“刷新 Docker 页面”时打开的实际 Unraid WebGUI 地址。
+UNRAID_DOCKER_URL=http://YOUR_UNRAID_IP:5000/Docker
+```
+
+确认 IP 和端口后，先检查展开结果，再启动：
 
 ```bash
-cp .env.example .env
 docker compose config
+docker compose pull
 docker compose up -d
 ```
+
+启动完成后访问 `http://你的_UNRAID_IP:8787`。建议同时检查健康状态：
+
+```bash
+curl http://你的_UNRAID_IP:8787/api/health
+```
+
+正常结果中，`ok`、`templatesWritable` 和 `iconCachesMounted` 都应为 `true`。
 
 #### Compose 服务字段逐项说明
 
