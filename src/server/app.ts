@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { join } from "node:path";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -52,6 +52,14 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       const result = await storeUploadedIcon(config, Buffer.from(content, "base64"));
       return reply.code(201).send(result);
     } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
+  });
+
+  app.get("/api/icons/file/:fileName", async (request, reply) => {
+    const fileName = (request.params as { fileName: string }).fileName;
+    if (!/^[a-f0-9]{64}\.png$/.test(fileName)) return reply.code(400).send({ message: "Invalid icon file name" });
+    const filePath = join(config.iconsDir, fileName);
+    if (!existsSync(filePath)) return reply.code(404).send({ message: "Icon file not found" });
+    return reply.type("image/png").send(createReadStream(filePath));
   });
 
   app.post("/api/icons/apply", async (request, reply) => {

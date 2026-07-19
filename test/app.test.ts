@@ -18,10 +18,19 @@ test("apply and rollback reject template files that are not attached to an edita
   await mkdir(configDir); await mkdir(templatesDir);
   await writeFile(join(templatesDir, "my-active.xml"), "<Container><Name>active</Name><Icon>old.png</Icon></Container>");
   const config: AppConfig = { port: 8787, host: "127.0.0.1", configDir, templatesDir, iconsDir: join(configDir, "icons"), iconHostRoot: "/mnt/user/icons", backupsDir: join(configDir, "backups"), maxUploadBytes: 1024 };
+  await mkdir(config.iconsDir);
+  const iconFile = `${"a".repeat(64)}.png`;
+  await writeFile(join(config.iconsDir, iconFile), Buffer.from("png-test"));
   let deployed = true;
   const app = createApp(config, { listManagedContainers: async () => ({ containers: deployed ? [activeContainer] : [], dockerAvailable: true }) });
 
   try {
+    const preview = await app.inject({ method: "GET", url: `/api/icons/file/${iconFile}` });
+    assert.equal(preview.statusCode, 200);
+    assert.match(preview.headers["content-type"] ?? "", /image\/png/);
+    const invalidPreview = await app.inject({ method: "GET", url: "/api/icons/file/not-a-hash.png" });
+    assert.equal(invalidPreview.statusCode, 400);
+
     const rejected = await app.inject({ method: "POST", url: "/api/icons/apply", payload: { templateFiles: ["my-removed.xml"], icon: "https://example.com/icon.png" } });
     assert.equal(rejected.statusCode, 400);
 

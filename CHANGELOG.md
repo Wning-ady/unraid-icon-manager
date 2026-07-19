@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+
+- Open a focused single-container icon editor when an editable container card is clicked, while keeping checkboxes dedicated to bulk selection.
+- Add safe previews for tool-uploaded PNG files and clear fallback messages for invalid URLs or external host paths.
+
 ## 0.1.4
 
 - Refresh the dashboard UI with clearer container cards, selection states, and responsive layout.
