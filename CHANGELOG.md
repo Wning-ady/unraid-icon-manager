@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- Refresh the dashboard UI with clearer container cards, selection states, and responsive layout.
+- Separate Docker lifecycle state from Compose and template-persistence notices so card labels never run together.
+
 ## 0.1.3
 
 - Add coverage for case-insensitive container/template association, icon format validation, upload size limits, path safety, and failed template-write preparation.
