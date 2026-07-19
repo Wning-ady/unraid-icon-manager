@@ -37,7 +37,7 @@ export interface ManagedContainer {
   icon: string | null;
   /** What Unraid currently renders, kept separate from the persisted template Icon. */
   displayIcon: string | null;
-  displayIconSource: "unraid-cache" | "template" | null;
+  displayIconSource: "unraid-cache" | "unraid-label" | "template" | null;
   editable: boolean;
   templateMatch: "name" | "file" | null;
   composeManaged: boolean;

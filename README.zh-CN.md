@@ -12,7 +12,7 @@
 ## 功能
 
 - 以当前已部署 Docker 容器为列表来源，而非历史模板文件。
-- 直接显示 Unraid 当前 RAM/持久缓存中的实际图标，包括图标不在用户模板内的 Compose 容器。
+- 直接显示 Unraid 当前 RAM/持久缓存或明确 `net.unraid.docker.icon` 标签中的实际图标，包括图标不在用户模板内的 Compose 容器。本地标签路径通过配置的 Unraid WebGUI 地址显示，不需要挂载 Compose 项目目录。
 - 每个当前容器都可设置图标：已有匹配模板时更新模板；没有模板时，自动生成带清晰标记和审计记录的专用图标元数据模板，匹配实际容器名与镜像，并避免与现有 `my-*.xml` 文件冲突。
 - 不修改 Compose 文件、不调用 Docker 变更 API，也不重建 Compose、第三方或 Docker Manager 容器。
 - 支持搜索、多选，并可直接点击任意容器卡片打开单容器图标编辑器。
@@ -92,10 +92,10 @@ npm run check
 
 ## 发布
 
-推送例如 `v0.1.9` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
+推送例如 `v0.1.10` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.9`
+- `waning/unraid-icon-manager:v0.1.10`
 - `waning/unraid-icon-manager:v0.1`
 
 仓库维护者需要配置 `DOCKERHUB_USERNAME=waning` 与 `DOCKERHUB_TOKEN` 两个 GitHub Actions Secret。凭据不会保存在仓库中。

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.10
+
+- Display the exact `net.unraid.docker.icon` used by Unraid when a Compose container points to an HTTP(S) icon or a host path under `/mnt/user` and no materialized cache is available.
+- Resolve host-path labels through the configured Unraid WebGUI origin without mounting or reading arbitrary Compose project directories.
+
 ## 0.1.9
 
 - Show the icon that Unraid is actually rendering from its current RAM or persistent cache, including Compose containers without a matching user template.

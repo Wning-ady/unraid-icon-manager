@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { associateManagedContainers, discoverIconCandidates, type DockerSummary } from "../src/server/container-association.ts";
+import { resolveUnraidLabelIcon } from "../src/server/container-service.ts";
 import type { TemplateRecord } from "../src/server/types.ts";
 
 function template(name: string, fileName: string, icon: string | null = null): TemplateRecord {
@@ -115,4 +116,14 @@ test("returns icon candidates only when the current template has no icon", () =>
   const withIcon = associateManagedContainers([template("compose", "my-compose.xml", "https://current.example/icon.png")], [summary]);
   assert.equal(withoutIcon[0].iconCandidates.length, 1);
   assert.deepEqual(withIcon[0].iconCandidates, []);
+});
+
+test("resolves the exact Unraid icon label without reading arbitrary host paths", () => {
+  assert.equal(
+    resolveUnraidLabelIcon("http://192.168.1.10:5000/Docker", "/mnt/user/docker/media/icons/app icon.png"),
+    "http://192.168.1.10:5000/mnt/user/docker/media/icons/app%20icon.png"
+  );
+  assert.equal(resolveUnraidLabelIcon("http://unraid/Docker", "https://cdn.example/icon.png"), "https://cdn.example/icon.png");
+  assert.equal(resolveUnraidLabelIcon("http://unraid/Docker", "/etc/passwd"), null);
+  assert.equal(resolveUnraidLabelIcon("http://unraid/Docker", "/mnt/user/icons/../secret.png"), null);
 });
