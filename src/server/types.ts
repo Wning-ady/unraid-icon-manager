@@ -30,6 +30,7 @@ export interface ManagedContainer {
   icon: string | null;
   editable: boolean;
   templateMatch: "name" | "file" | null;
+  uneditableReason: "no-template" | "compose" | null;
 }
 
 export interface Group {

@@ -58,3 +58,12 @@ test("does not include stale templates when their Docker container is not deploy
 
   assert.deepEqual(containers.map((container) => container.name), ["active"]);
 });
+
+test("keeps Compose containers read-only even when a same-named template exists", () => {
+  const compose = { ...deployed("sonarr"), Labels: { "com.docker.compose.project": "media" } };
+  const containers = associateManagedContainers([template("sonarr", "my-sonarr.xml")], [compose]);
+
+  assert.equal(containers[0].editable, false);
+  assert.equal(containers[0].fileName, null);
+  assert.equal(containers[0].uneditableReason, "compose");
+});

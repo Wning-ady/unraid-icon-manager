@@ -13,7 +13,7 @@
     "build:server": "tsc -p tsconfig.server.json",
     "start": "node dist/server/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.client.json",
-    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test": "tsx --test test/*.test.ts",
     "lint": "eslint .",
     "check": "npm run lint && npm run typecheck && npm test"
   },

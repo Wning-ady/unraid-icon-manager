@@ -20,7 +20,7 @@ Bulk-manage icons for **Unraid Docker Manager** containers from a small self-hos
 - View audit history and restore an individual change.
 - Read current container state through the Docker socket without issuing Docker mutations.
 
-The app first reads the current Docker container list, then associates each container with an Unraid template by its `<Name>` or `my-container-name.xml` filename. Containers without a matching file in Unraid's `templates-user` directory remain visible, but are deliberately read-only: there is nowhere safe to persist their Docker Manager icon. Historical templates without a currently deployed Docker container are not shown. Compose-managed containers are intentionally out of scope for v1.
+The app first reads the current Docker container list, then associates each container with an Unraid template by its `<Name>` or `my-container-name.xml` filename. Containers without a matching file in Unraid's `templates-user` directory remain visible, but are deliberately read-only: there is nowhere safe to persist their Docker Manager icon. Historical templates without a currently deployed Docker container are not shown. Containers carrying Docker Compose labels are also read-only, even when a same-named historical template exists; Compose files are never modified.
 
 ## Install on Unraid
 

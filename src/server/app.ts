@@ -18,14 +18,15 @@ function httpError(error: unknown): { statusCode: number; message: string } {
   return { statusCode: 400, message: error instanceof Error ? error.message : "Invalid request" };
 }
 
-export function createApp(config: AppConfig) {
+export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers } = {}) {
   const app = Fastify({ logger: true, bodyLimit: config.maxUploadBytes + 16_384 });
   const database = new AppDatabase(config);
   const clientRoot = join(process.cwd(), "dist/client");
+  const listContainers = dependencies.listManagedContainers ?? listManagedContainers;
 
   app.addHook("onClose", () => database.close());
   app.get("/api/health", async () => ({ ok: true, templatesDir: config.templatesDir, templatesWritable: existsSync(config.templatesDir) }));
-  app.get("/api/containers", async () => listManagedContainers(config));
+  app.get("/api/containers", async () => listContainers(config));
   app.get("/api/groups", async () => database.listGroups());
   app.post("/api/groups", async (request, reply) => {
     try {
@@ -60,7 +61,7 @@ export function createApp(config: AppConfig) {
       if (!templateFiles.length) throw new Error("Select at least one container");
       if (typeof body.icon !== "string" || !body.icon.trim()) throw new Error("icon is required");
       const icon = body.icon.startsWith("/") ? body.icon : validateIconUrl(body.icon);
-      const templates = (await listManagedContainers(config)).containers;
+      const templates = (await listContainers(config)).containers;
       const templateByFile = new Map(templates.filter((template) => template.editable && template.fileName).map((template) => [template.fileName!, template]));
       const results = [];
       for (const fileName of templateFiles) {
@@ -78,6 +79,9 @@ export function createApp(config: AppConfig) {
       const id = Number((request.params as { id: string }).id);
       const audit = database.getAudit(id);
       if (!audit) return reply.code(404).send({ message: "Audit record not found" });
+      const currentTemplates = await listContainers(config);
+      const stillEditable = currentTemplates.containers.some((container) => container.editable && container.fileName === audit.templateFile);
+      if (!stillEditable) throw new Error("Template is not attached to a deployed, editable container");
       await restoreTemplate(config, audit.templateFile, audit.backupFile);
       return database.addAudit({ containerName: audit.containerName, templateFile: audit.templateFile, oldIcon: audit.newIcon, newIcon: audit.oldIcon, backupFile: audit.backupFile, createdAt: new Date().toISOString(), result: "restored" });
     } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }

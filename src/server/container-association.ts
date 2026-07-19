@@ -6,6 +6,7 @@ export interface DockerSummary {
   Image: string;
   State: string;
   Status: string;
+  Labels?: Record<string, string>;
 }
 
 export type TemplateMatch = "name" | "file" | null;
@@ -38,12 +39,15 @@ export function associateManagedContainers(templates: TemplateRecord[], summarie
       const name = containerName(summary);
       if (!name) return null;
       const associated = findTemplate(templates, name);
+      const composeManaged = Boolean(summary.Labels?.["com.docker.compose.project"] || summary.Labels?.["com.docker.compose.service"]);
+      const uneditableReason: ManagedContainer["uneditableReason"] = composeManaged ? "compose" : associated ? null : "no-template";
       return {
         name,
-        fileName: associated?.template.fileName ?? null,
+        fileName: composeManaged ? null : associated?.template.fileName ?? null,
         icon: associated?.template.icon ?? null,
-        templateMatch: associated?.match ?? null,
-        editable: Boolean(associated),
+        templateMatch: composeManaged ? null : associated?.match ?? null,
+        editable: Boolean(associated) && !composeManaged,
+        uneditableReason,
         id: summary.Id,
         image: summary.Image,
         state: summary.State,

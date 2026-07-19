@@ -5,6 +5,7 @@
 - List current Docker containers first and omit stale historical templates.
 - Associate deployed containers with editable Unraid templates by name or template filename.
 - Keep deployed containers without a template visible as read-only and reject non-deployed template writes.
+- Keep Docker Compose-labelled containers read-only and require a current editable association for rollback.
 
 ## 0.1.1
 
