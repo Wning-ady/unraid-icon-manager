@@ -2,25 +2,35 @@ services:
   unraid-icon-manager:
     image: waning/unraid-icon-manager:${IMAGE_TAG:-latest}
     container_name: unraid-icon-manager
+
     ports:
       - "${WEBUI_PORT:-8787}:8787"
+
     environment:
       - TZ=${TZ:-Asia/Shanghai}
       - ICON_HOST_ROOT=${ICON_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/icons}
+      - WALLPAPER_HOST_ROOT=${WALLPAPER_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/wallpapers}
       - ICON_CACHE_DIR=/unraid/icon-cache
       - ICON_CACHE_RAM_DIR=/unraid/icon-cache-ram
       - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES:-5242880}
       - MAX_WALLPAPER_BYTES=${MAX_WALLPAPER_BYTES:-31457280}
-      - WALLPAPER_HOST_ROOT=${WALLPAPER_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/wallpapers}
-      # 启动前在 .env 中填写；PUBLIC_BASE_URL 必须能被 Unraid 主机访问。
+      # 必须能被 Unraid 主机访问，不能填写 localhost 或容器名。
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env to this host's mapped URL}
+      # 填写 Unraid WebGUI 的 Docker 页面地址，自定义端口也要写入。
       - UNRAID_DOCKER_URL=${UNRAID_DOCKER_URL:?Set UNRAID_DOCKER_URL in .env to the Unraid Docker page}
+
     volumes:
+      # 数据库、图库、审计记录和备份。
       - ${CONFIG_HOST_DIR:-/mnt/user/appdata/unraid-icon-manager}:/config
+      # Unraid Docker Manager 用户模板。
       - /boot/config/plugins/dockerMan/templates-user:/unraid/templates-user
+      # Unraid 持久图标缓存与内存图标缓存。
       - /var/lib/docker/unraid/images:/unraid/icon-cache
       - /usr/local/emhttp/state/plugins/dynamix.docker.manager/images:/unraid/icon-cache-ram
+      # 只读取当前 Docker 容器信息。
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
     security_opt:
       - no-new-privileges:true
+
     restart: unless-stopped
