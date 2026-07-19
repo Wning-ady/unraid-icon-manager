@@ -58,7 +58,7 @@ function stateLabel(state: string): string {
 
 function templateNote(container: Container): string {
   const template = container.templateState === "linked" ? "已关联 Unraid 模板" : container.templateState === "generated" ? "使用本工具生成的图标元数据模板" : "首次保存将创建 Unraid 模板";
-  return container.composeManaged ? `Compose 容器 · ${template}；不会修改 Compose 文件或重建容器` : template;
+  return container.composeManaged ? `Compose Manager 容器 · ${template}；保存后同步会更新 override，并只重建此容器` : template;
 }
 
 function ContainerCardBody({ container }: { container: Container }) {

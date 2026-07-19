@@ -102,10 +102,10 @@ For Compose deployment variables, use [`.env.example`](.env.example); direct loc
 
 ## Publishing
 
-Push a tag such as `v0.1.13` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.14` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.13`
+- `waning/unraid-icon-manager:v0.1.14`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.
