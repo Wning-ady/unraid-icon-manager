@@ -7,12 +7,12 @@
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/waning/unraid-icon-manager/issues</Support>
-  <Project>https://github.com/waning/unraid-icon-manager</Project>
+  <Support>https://github.com/Wning-ady/unraid-icon-manager/issues</Support>
+  <Project>https://github.com/Wning-ady/unraid-icon-manager</Project>
   <Overview>Bulk-manage Docker Manager container icons. This container modifies Unraid Docker templates, so keep it on a trusted LAN only.</Overview>
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
-  <Icon>https://raw.githubusercontent.com/waning/unraid-icon-manager/main/docs/icon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/Wning-ady/unraid-icon-manager/main/docs/icon.svg</Icon>
   <ExtraParams>--security-opt=no-new-privileges</ExtraParams>
   <PostArgs/>
   <CPUset/>
