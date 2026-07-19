@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- Use the file modification time for gallery assets on Unraid filesystems that do not expose a birth time, avoiding a misleading 1970 timestamp.
+
 ## 0.1.7
 
 - Materialize app-uploaded PNG files directly into both Unraid Docker Manager caches so running, stopped, Compose, and collapsed Compose containers update consistently.

@@ -33,7 +33,8 @@ export async function listStoredIcons(config: AppConfig, baseUrl: string): Promi
     .map(async (entry) => {
       const metadata = await stat(join(config.iconsDir, entry.name));
       const previewUrl = `/api/icons/file/${entry.name}`;
-      return { fileName: entry.name, previewUrl, icon: `${baseUrl}${previewUrl}`, bytes: metadata.size, createdAt: metadata.birthtime.toISOString() };
+      const createdAt = metadata.birthtimeMs > 0 ? metadata.birthtime : metadata.mtime;
+      return { fileName: entry.name, previewUrl, icon: `${baseUrl}${previewUrl}`, bytes: metadata.size, createdAt: createdAt.toISOString() };
     }));
   return icons.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
