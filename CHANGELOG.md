@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Make Chinese the primary GitHub README and keep English as supplementary documentation.
+- Add a clear disclosure that the project is built entirely with AI assistance.
+- Document every Docker Compose field, environment variable, port, mount, permission, security option, upgrade step, and rollback consideration.
+- Make the Compose image tag, host WebUI port, time zone, config host directory, icon host root, and upload limit configurable with truthful `.env.example` defaults.
+- Add `no-new-privileges` to the Compose example to match the Unraid template.
+
 ## 0.1.11
 
 - Render external `net.unraid.docker.icon` labels through the same Unraid WebGUI cache URL used on the Docker page, avoiding direct browser requests to third-party icon hosts.
