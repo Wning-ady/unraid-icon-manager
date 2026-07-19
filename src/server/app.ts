@@ -1,13 +1,16 @@
-import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { constants, createReadStream, existsSync, readFileSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { join } from "node:path";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import type { AppConfig } from "./types.js";
 import { AppDatabase } from "./database.js";
 import { listManagedContainers } from "./container-service.js";
-import { createGeneratedTemplate, getTemplate, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "./template-service.js";
-import { listStoredIcons, storeUploadedIcon } from "./icon-service.js";
+import { createGeneratedTemplate, getTemplate, listTemplates, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "./template-service.js";
+import { deleteStoredIcon, listStoredIcons, storeUploadedIcon } from "./icon-service.js";
 import { validateIconUrl } from "./icon-validation.js";
+import { downloadRemoteImage } from "./remote-image-service.js";
+import { deleteWallpaper, listWallpaperFiles, storeWallpaper, wallpaperPath } from "./wallpaper-service.js";
 import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
 
 function stringArray(value: unknown, label: string): string[] {
@@ -32,24 +35,33 @@ function publicBaseUrl(config: AppConfig, request: { protocol: string; headers: 
 }
 
 function uploadedIconUrl(config: AppConfig, request: { protocol: string; headers: { host?: string } }, fileName: string): string {
+  if (!config.publicBaseUrl) throw new Error("PUBLIC_BASE_URL 必须配置为 Unraid 主机可访问的本工具地址");
   return `${publicBaseUrl(config, request)}/api/icons/file/${fileName}`;
 }
 
-function normalizeIcon(config: AppConfig, request: { protocol: string; headers: { host?: string } }, value: string): string {
+function ownIconFile(config: AppConfig, value: string): string | null {
   const icon = value.trim();
-  if (!icon.startsWith("/")) return validateIconUrl(icon);
-  const fileName = icon.split("/").pop() ?? "";
-  if (!/^[a-f0-9]{64}\.png$/.test(fileName) || !existsSync(join(config.iconsDir, fileName))) {
-    throw new Error("Local icon must be an image uploaded through this app");
-  }
-  return uploadedIconUrl(config, request, fileName);
+  let path = icon;
+  try { if (/^https?:\/\//i.test(icon)) path = new URL(icon).pathname; } catch { return null; }
+  const fileName = path.split("/").pop() ?? "";
+  return /^[a-f0-9]{64}\.png$/.test(fileName) && existsSync(join(config.iconsDir, fileName)) ? fileName : null;
 }
 
-export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers } = {}) {
-  const app = Fastify({ logger: true, bodyLimit: config.maxUploadBytes + 16_384 });
+export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage } = {}) {
+  const bodyBytes = Math.max(config.maxUploadBytes, config.maxWallpaperBytes ?? config.maxUploadBytes);
+  const app = Fastify({ logger: true, bodyLimit: Math.ceil(bodyBytes * 4 / 3) + 16_384 });
   const database = new AppDatabase(config);
   const clientRoot = join(process.cwd(), "dist/client");
   const listContainers = dependencies.listManagedContainers ?? listManagedContainers;
+  const downloadImage = dependencies.downloadRemoteImage ?? downloadRemoteImage;
+  let iconMutationTail = Promise.resolve();
+  async function withIconMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = iconMutationTail;
+    let release!: () => void;
+    iconMutationTail = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    try { return await operation(); } finally { release(); }
+  }
   let appVersion = "dev";
   try { appVersion = (JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version?: string }).version ?? appVersion; } catch { /* Development fallback. */ }
 
@@ -60,7 +72,9 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     templatesWritable: existsSync(config.templatesDir),
     iconCachesMounted: Boolean(config.iconCacheDir && config.iconCacheRamDir && existsSync(config.iconCacheDir) && existsSync(config.iconCacheRamDir))
   }));
-  app.get("/api/about", async () => ({ version: appVersion, githubUrl: "https://github.com/Wning-ady/unraid-icon-manager" }));
+  app.get("/api/about", async () => ({ version: appVersion, githubUrl: "https://github.com/Wning-ady/unraid-icon-manager",
+    iconHostRoot: config.iconHostRoot, iconContainerRoot: "/config/icons",
+    wallpaperHostRoot: config.wallpaperHostRoot ?? join(config.configDir, "wallpapers"), wallpaperContainerRoot: "/config/wallpapers" }));
   app.get("/api/containers", async () => listContainers(config));
   app.get("/api/containers/icon-cache/:containerName", async (request, reply) => {
     try {
@@ -84,21 +98,41 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
 
   app.get("/api/icons", async (request) => listStoredIcons(config, publicBaseUrl(config, request)));
 
+  app.delete("/api/icons/:fileName", async (request, reply) => {
+    try {
+      await withIconMutation(async () => {
+        const fileName = (request.params as { fileName: string }).fileName;
+        if (!/^[a-f0-9]{64}\.png$/.test(fileName)) throw new Error("Invalid icon file name");
+        const referenced = (value: string | null) => Boolean(value && value.includes(fileName));
+        const templateReferences = (await listTemplates(config)).filter((template) => referenced(template.icon));
+        const auditReferences = database.countIconReferences(fileName);
+        if (templateReferences.length || auditReferences) {
+          const error = new Error(`该图标仍被 ${templateReferences.length} 个模板和 ${auditReferences} 条变更记录引用，不能删除`) as Error & { statusCode: number };
+          error.statusCode = 409; throw error;
+        }
+        await deleteStoredIcon(config, fileName);
+      });
+      return reply.code(204).send();
+    } catch (error) { const detail = httpError(error); return reply.code((error as { statusCode?: number }).statusCode ?? detail.statusCode).send(detail); }
+  });
+
   app.get("/api/icons/file/:fileName", async (request, reply) => {
     const fileName = (request.params as { fileName: string }).fileName;
     if (!/^[a-f0-9]{64}\.png$/.test(fileName)) return reply.code(400).send({ message: "Invalid icon file name" });
     const filePath = join(config.iconsDir, fileName);
-    if (!existsSync(filePath)) return reply.code(404).send({ message: "Icon file not found" });
-    return reply.type("image/png").send(createReadStream(filePath));
+    try {
+      const handle = await open(filePath, constants.O_RDONLY | constants.O_NOFOLLOW);
+      if (!(await handle.stat()).isFile()) { await handle.close(); return reply.code(404).send({ message: "Icon file not found" }); }
+      return reply.type("image/png").send(handle.createReadStream());
+    } catch { return reply.code(404).send({ message: "Icon file not found" }); }
   });
 
   app.post("/api/icons/apply", async (request, reply) => {
-    try {
+    return withIconMutation(async () => { try {
       const body = request.body as { containerIds?: unknown; icon?: unknown };
       const containerIds = stringArray(body.containerIds, "containerIds");
       if (!containerIds.length) throw new Error("Select at least one container");
       if (typeof body.icon !== "string" || !body.icon.trim()) throw new Error("icon is required");
-      const icon = normalizeIcon(config, request, body.icon);
       const containers = (await listContainers(config)).containers;
       const containerById = new Map(containers.map((container) => [container.id, container]));
       const targets = [...new Set(containerIds)].map((containerId) => {
@@ -106,6 +140,14 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         if (!container) throw new Error(`Container ${containerId.slice(0, 12)} is no longer deployed`);
         return container;
       });
+      const existingFile = ownIconFile(config, body.icon);
+      let fileName = existingFile;
+      if (!fileName) {
+        const remoteUrl = validateIconUrl(body.icon.trim());
+        const downloaded = await downloadImage(remoteUrl, config.maxUploadBytes);
+        fileName = (await storeUploadedIcon(config, downloaded)).fileName;
+      }
+      const icon = uploadedIconUrl(config, request, fileName);
       const iconPng = await resolveOwnUploadedIconPng(config, icon);
       const results = [];
       for (const container of targets) {
@@ -144,8 +186,64 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         }
         results.push(auditRecord);
       }
-      return { results, refreshUrl: config.unraidDockerUrl, notice: iconPng ? "图标已保存并写入 Unraid 缓存；请点击刷新按钮查看。容器没有重启或重建。" : "图标 URL 已保存，Unraid 将在 Docker 页面打开时获取新图标。容器没有重启或重建。" };
-    } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
+      return { results, icon, refreshUrl: config.unraidDockerUrl, notice: "图标已下载到图库并写入 Unraid 缓存；请点击刷新按钮查看。容器没有重启或重建。" };
+    } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); } });
+  });
+
+  app.get("/api/wallpaper-groups", async () => database.listWallpaperGroups());
+  app.post("/api/wallpaper-groups", async (request, reply) => {
+    try {
+      const body = request.body as { name?: unknown };
+      if (typeof body?.name !== "string") throw new Error("分组名称不能为空");
+      return reply.code(201).send(database.addWallpaperGroup(body.name));
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
+  app.get("/api/wallpapers", async (request) => listWallpaperFiles(config, publicBaseUrl(config, request), database.wallpaperGroupMap()));
+  app.post("/api/wallpapers/upload", async (request, reply) => {
+    try {
+      const body = request.body as { contentBase64?: unknown; groupId?: unknown };
+      if (typeof body?.contentBase64 !== "string") throw new Error("contentBase64 is required");
+      const content = body.contentBase64.replace(/^data:[^;]+;base64,/, "");
+      const stored = await storeWallpaper(config, Buffer.from(content, "base64"));
+      const groupId = body.groupId === null || body.groupId === undefined ? null : Number(body.groupId);
+      database.setWallpaperGroup(stored.fileName, groupId);
+      return reply.code(201).send(stored);
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
+  app.post("/api/wallpapers/import", async (request, reply) => {
+    try {
+      const body = request.body as { url?: unknown; groupId?: unknown };
+      if (typeof body?.url !== "string" || !body.url.trim()) throw new Error("壁纸 URL 不能为空");
+      const content = await downloadImage(validateIconUrl(body.url.trim()), config.maxWallpaperBytes ?? config.maxUploadBytes);
+      const stored = await storeWallpaper(config, content);
+      const groupId = body.groupId === null || body.groupId === undefined ? null : Number(body.groupId);
+      database.setWallpaperGroup(stored.fileName, groupId);
+      return reply.code(201).send(stored);
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
+  app.patch("/api/wallpapers/:fileName", async (request, reply) => {
+    try {
+      const fileName = (request.params as { fileName: string }).fileName;
+      if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(fileName) || !existsSync(wallpaperPath(config, fileName))) throw new Error("壁纸不存在");
+      const body = request.body as { groupId?: unknown };
+      const groupId = body.groupId === null ? null : Number(body.groupId);
+      database.setWallpaperGroup(fileName, groupId); return { ok: true };
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
+  app.delete("/api/wallpapers/:fileName", async (request, reply) => {
+    try { const fileName = (request.params as { fileName: string }).fileName; await deleteWallpaper(config, fileName); database.removeWallpaper(fileName); return reply.code(204).send(); }
+    catch (error) { return reply.code(400).send(httpError(error)); }
+  });
+  app.get("/api/wallpapers/file/:fileName", async (request, reply) => {
+    const fileName = (request.params as { fileName: string }).fileName;
+    if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(fileName)) return reply.code(404).send({ message: "壁纸不存在" });
+    const extension = fileName.split(".").pop();
+    if ((request.query as { download?: string }).download === "1") reply.header("content-disposition", `attachment; filename="${fileName}"`);
+    try {
+      const handle = await open(wallpaperPath(config, fileName), constants.O_RDONLY | constants.O_NOFOLLOW);
+      if (!(await handle.stat()).isFile()) { await handle.close(); return reply.code(404).send({ message: "壁纸不存在" }); }
+      return reply.type(extension === "jpg" ? "image/jpeg" : `image/${extension}`).send(handle.createReadStream());
+    } catch { return reply.code(404).send({ message: "壁纸不存在" }); }
   });
 
   app.post("/api/unraid/refresh", async (request, reply) => {

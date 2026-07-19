@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
 import type { AppConfig } from "./types.js";
@@ -37,4 +37,13 @@ export async function listStoredIcons(config: AppConfig, baseUrl: string): Promi
       return { fileName: entry.name, previewUrl, icon: `${baseUrl}${previewUrl}`, bytes: metadata.size, createdAt: createdAt.toISOString() };
     }));
   return icons.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function deleteStoredIcon(config: AppConfig, fileName: string): Promise<void> {
+  if (!/^[a-f0-9]{64}\.png$/.test(fileName)) throw new Error("Invalid icon file name");
+  const filePath = join(config.iconsDir, fileName);
+  let metadata;
+  try { metadata = await lstat(filePath); } catch { throw new Error("Icon file not found"); }
+  if (!metadata.isFile() || metadata.isSymbolicLink()) throw new Error("Icon asset is not a regular file");
+  await unlink(filePath);
 }

@@ -7,8 +7,11 @@ export interface AppConfig {
   templatesDir: string;
   iconsDir: string;
   iconHostRoot: string;
+  wallpapersDir?: string;
+  wallpaperHostRoot?: string;
   backupsDir: string;
   maxUploadBytes: number;
+  maxWallpaperBytes?: number;
   /** Host Docker Manager's persistent and RAM icon caches, mounted read/write. */
   iconCacheDir?: string;
   iconCacheRamDir?: string;
@@ -56,6 +59,25 @@ export interface StoredIcon {
   previewUrl: string;
   icon: string;
   bytes: number;
+  createdAt: string;
+}
+
+export interface WallpaperGroup {
+  id: number;
+  name: string;
+  createdAt: string;
+}
+
+export interface StoredWallpaper {
+  fileName: string;
+  previewUrl: string;
+  downloadUrl: string;
+  url: string;
+  bytes: number;
+  width: number;
+  height: number;
+  mimeType: string;
+  groupId: number | null;
   createdAt: string;
 }
 

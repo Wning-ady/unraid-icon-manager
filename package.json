@@ -1,6 +1,6 @@
 {
   "name": "unraid-icon-manager",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "type": "module",
   "description": "A self-hosted bulk icon manager for Unraid Docker Manager containers.",
@@ -21,10 +21,11 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@fastify/static": "^8.2.0",
+    "@fastify/static": "^10.1.0",
     "better-sqlite3": "^12.4.1",
-    "dockerode": "^4.0.7",
+    "dockerode": "^5.0.1",
     "fastify": "^5.6.2",
+    "ipaddr.js": "^2.4.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sharp": "^0.34.4"
