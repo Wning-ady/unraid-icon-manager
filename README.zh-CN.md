@@ -11,7 +11,8 @@
 
 ## 功能
 
-- 搜索并多选 Docker Manager 容器。
+- 以当前已部署 Docker 容器为列表来源，而非历史模板文件。
+- 搜索并多选可编辑的 Docker Manager 容器。
 - 上传 PNG、SVG、WebP 图标；上传文件将规范化为稳定的 PNG 文件。
 - 使用现有的 HTTP(S) 图标 URL。
 - 保存并复用容器分组。
@@ -19,7 +20,7 @@
 - 查看审计历史，并单独回滚每项变更。
 - 仅通过 Docker socket 读取容器名称、镜像与运行状态，不会调用 Docker 变更接口。
 
-只有在 Unraid `templates-user` 目录内存在对应模板文件的容器才可编辑。v1 有意不处理 Compose 管理的容器，也不会修改 Compose 文件。
+程序先读取当前 Docker 容器，再按模板的 `<Name>` 或 `my-容器名.xml` 文件名关联 Unraid 模板。Unraid `templates-user` 中没有对应模板文件的容器仍会显示，但会明确标为只读，因为没有安全的 Docker Manager 图标持久化位置；不存在当前 Docker 容器的历史模板不会显示。v1 有意不处理 Compose 管理的容器，也不会修改 Compose 文件。
 
 ## 在 Unraid 安装
 

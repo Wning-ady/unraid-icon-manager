@@ -18,12 +18,18 @@ export interface TemplateRecord {
   icon: string | null;
 }
 
-export interface ManagedContainer extends TemplateRecord {
-  id: string | null;
-  image: string | null;
-  state: string | null;
-  status: string | null;
-  managed: boolean;
+export interface ManagedContainer {
+  /** Name and Docker metadata always come from a currently deployed container. */
+  name: string;
+  id: string;
+  image: string;
+  state: string;
+  status: string;
+  /** A matching template is required because it is the persisted source of an Unraid icon. */
+  fileName: string | null;
+  icon: string | null;
+  editable: boolean;
+  templateMatch: "name" | "file" | null;
 }
 
 export interface Group {

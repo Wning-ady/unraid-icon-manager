@@ -61,11 +61,11 @@ export function createApp(config: AppConfig) {
       if (typeof body.icon !== "string" || !body.icon.trim()) throw new Error("icon is required");
       const icon = body.icon.startsWith("/") ? body.icon : validateIconUrl(body.icon);
       const templates = (await listManagedContainers(config)).containers;
-      const templateByFile = new Map(templates.map((template) => [template.fileName, template]));
+      const templateByFile = new Map(templates.filter((template) => template.editable && template.fileName).map((template) => [template.fileName!, template]));
       const results = [];
       for (const fileName of templateFiles) {
         const template = templateByFile.get(fileName);
-        if (!template) throw new Error(`Template ${fileName} does not exist`);
+        if (!template) throw new Error(`Template ${fileName} is not attached to a deployed, editable container`);
         const update = await updateTemplateIcon(config, fileName, icon);
         results.push(database.addAudit({ containerName: template.name, templateFile: fileName, oldIcon: update.oldIcon, newIcon: icon, backupFile: update.backupFile, createdAt: new Date().toISOString(), result: "applied" }));
       }
