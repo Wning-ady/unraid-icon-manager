@@ -1,12 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.1.12
 
 - Make Chinese the primary GitHub README and keep English as supplementary documentation.
 - Add a clear disclosure that the project is built entirely with AI assistance.
 - Document every Docker Compose field, environment variable, port, mount, permission, security option, upgrade step, and rollback consideration.
 - Make the Compose image tag, host WebUI port, time zone, config host directory, icon host root, and upload limit configurable with truthful `.env.example` defaults.
 - Add `no-new-privileges` to the Compose example to match the Unraid template.
+- Download external icon URLs into the persistent gallery before changing templates or caches, with redirect, size, type and local-network protections.
+- Add safe icon deletion, stable-address and host/container root copy actions, and preserve assets referenced by templates or audit history.
+- Add a separate wallpaper gallery with uploads, public-URL imports, downloads, deletion, host/container root copy actions, manual groups and per-wallpaper classification.
+- Apply the new project icon to the Web UI, favicon, Apple touch icon, README and Unraid template metadata.
+- Upgrade the static-file and Docker client dependencies to patched releases and add zero-vulnerability production dependency verification.
 
 ## 0.1.11
 

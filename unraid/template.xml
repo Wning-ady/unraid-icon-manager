@@ -12,7 +12,7 @@
   <Overview>Bulk-manage icons for currently deployed Docker containers. It writes only Unraid Docker template metadata and narrowly scoped Docker Manager icon caches; it never edits Compose files or recreates application containers. Trusted LAN only.</Overview>
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
-  <Icon>https://raw.githubusercontent.com/Wning-ady/unraid-icon-manager/main/docs/icon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/Wning-ady/unraid-icon-manager/main/docs/icon.png</Icon>
   <ExtraParams>--security-opt=no-new-privileges</ExtraParams>
   <PostArgs/>
   <CPUset/>
@@ -21,12 +21,14 @@
   <DonateLink/>
   <Requires/>
   <Config Name="WebUI port" Target="8787" Default="8787" Mode="tcp" Description="Web UI port" Type="Port" Display="always" Required="true" Mask="false">8787</Config>
-  <Config Name="Application data" Target="/config" Default="/mnt/user/appdata/unraid-icon-manager" Mode="rw" Description="Database, uploaded icons, audits and backups" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager</Config>
+  <Config Name="Application data" Target="/config" Default="/mnt/user/appdata/unraid-icon-manager" Mode="rw" Description="Database, icon and wallpaper galleries, audits and backups" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager</Config>
   <Config Name="Docker Manager templates" Target="/unraid/templates-user" Default="/boot/config/plugins/dockerMan/templates-user" Mode="rw" Description="Required to update icon template metadata" Type="Path" Display="always" Required="true" Mask="false">/boot/config/plugins/dockerMan/templates-user</Config>
   <Config Name="Persistent icon cache" Target="/unraid/icon-cache" Default="/var/lib/docker/unraid/images" Mode="rw" Description="Required to invalidate only changed Docker Manager icon cache files" Type="Path" Display="always" Required="true" Mask="false">/var/lib/docker/unraid/images</Config>
   <Config Name="RAM icon cache" Target="/unraid/icon-cache-ram" Default="/usr/local/emhttp/state/plugins/dynamix.docker.manager/images" Mode="rw" Description="Required to invalidate only changed runtime Docker Manager icon cache files" Type="Path" Display="always" Required="true" Mask="false">/usr/local/emhttp/state/plugins/dynamix.docker.manager/images</Config>
   <Config Name="Docker socket (read only)" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Reads current Docker container status" Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
   <Config Name="Icon host path" Target="ICON_HOST_ROOT" Default="/mnt/user/appdata/unraid-icon-manager/icons" Mode="" Description="Host-side location matching /config/icons; uploads are served through the public URL below" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager/icons</Config>
+  <Config Name="Wallpaper host path" Target="WALLPAPER_HOST_ROOT" Default="/mnt/user/appdata/unraid-icon-manager/wallpapers" Mode="" Description="Host-side location matching /config/wallpapers" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager/wallpapers</Config>
   <Config Name="Public icon base URL" Target="PUBLIC_BASE_URL" Default="" Mode="" Description="Required for uploads: URL that the Unraid host can fetch, e.g. http://192.168.1.10:8787" Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Maximum wallpaper bytes" Target="MAX_WALLPAPER_BYTES" Default="31457280" Mode="" Description="Maximum uploaded or downloaded wallpaper size, default 30 MiB" Type="Variable" Display="advanced" Required="true" Mask="false">31457280</Config>
   <Config Name="Unraid Docker page URL" Target="UNRAID_DOCKER_URL" Default="" Mode="" Description="URL opened by Refresh Docker Page, e.g. http://192.168.1.10/Docker or your custom port" Type="Variable" Display="advanced" Required="true" Mask="false"/>
 </Container>

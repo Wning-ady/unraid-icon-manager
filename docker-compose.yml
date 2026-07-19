@@ -10,6 +10,8 @@ services:
       - ICON_CACHE_DIR=/unraid/icon-cache
       - ICON_CACHE_RAM_DIR=/unraid/icon-cache-ram
       - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES:-5242880}
+      - MAX_WALLPAPER_BYTES=${MAX_WALLPAPER_BYTES:-31457280}
+      - WALLPAPER_HOST_ROOT=${WALLPAPER_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/wallpapers}
       # 启动前在 .env 中填写；PUBLIC_BASE_URL 必须能被 Unraid 主机访问。
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env to this host's mapped URL}
       - UNRAID_DOCKER_URL=${UNRAID_DOCKER_URL:?Set UNRAID_DOCKER_URL in .env to the Unraid Docker page}
