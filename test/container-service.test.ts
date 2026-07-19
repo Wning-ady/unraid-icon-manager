@@ -38,6 +38,16 @@ test("falls back to the Unraid template filename when Name differs", () => {
   assert.equal(containers[0].templateMatch, "file");
 });
 
+test("matches names and template filenames without case sensitivity", () => {
+  const byName = associateManagedContainers([template("PLEX", "my-plex.xml")], [deployed("plex")]);
+  const byFile = associateManagedContainers([template("Sonarr archive", "my-SONARR.xml")], [deployed("sonarr")]);
+
+  assert.equal(byName[0].fileName, "my-plex.xml");
+  assert.equal(byName[0].templateMatch, "name");
+  assert.equal(byFile[0].fileName, "my-SONARR.xml");
+  assert.equal(byFile[0].templateMatch, "file");
+});
+
 test("keeps a deployed container without a matching template visible but not editable", () => {
   const containers = associateManagedContainers([template("other", "my-other.xml", "other.png")], [deployed("unmatched")]);
 

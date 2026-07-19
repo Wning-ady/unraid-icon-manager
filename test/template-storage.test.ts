@@ -24,3 +24,19 @@ test("backs up, atomically changes, and restores a template", async () => {
   await restoreTemplate(config, fileName, changed.backupFile);
   assert.equal(await readFile(join(templatesDir, fileName), "utf8"), original);
 });
+
+test("rejects path escapes and preserves the original template when a write preparation fails", async () => {
+  const root = await mkdtemp(join(tmpdir(), "unraid-icon-manager-"));
+  const templatesDir = join(root, "templates");
+  const configDir = join(root, "config");
+  await mkdir(templatesDir); await mkdir(configDir);
+  const fileName = "my-invalid.xml";
+  const original = "not valid template xml";
+  await writeFile(join(templatesDir, fileName), original);
+  const config: AppConfig = { port: 8787, host: "127.0.0.1", configDir, templatesDir, iconsDir: join(configDir, "icons"), iconHostRoot: "/mnt/user/icons", backupsDir: join(configDir, "backups"), maxUploadBytes: 10 };
+
+  await assert.rejects(updateTemplateIcon(config, fileName, "new.png"), /Template XML is invalid/);
+  assert.equal(await readFile(join(templatesDir, fileName), "utf8"), original);
+  await assert.rejects(updateTemplateIcon(config, "../outside.xml", "new.png"), /Invalid template file name/);
+  await assert.rejects(restoreTemplate(config, fileName, join(root, "outside.xml")), /Backup path escapes backup directory/);
+});

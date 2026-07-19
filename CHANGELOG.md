@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Add coverage for case-insensitive container/template association, icon format validation, upload size limits, path safety, and failed template-write preparation.
+
 ## 0.1.2
 
 - List current Docker containers first and omit stale historical templates.
