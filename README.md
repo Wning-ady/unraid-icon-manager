@@ -1,5 +1,7 @@
 # Unraid Icon Manager
 
+[中文说明](README.zh-CN.md) · English
+
 <p align="center"><img src="docs/screenshot.svg" alt="Unraid Icon Manager dashboard preview" width="760"></p>
 
 Bulk-manage icons for **Unraid Docker Manager** containers from a small self-hosted web UI. It updates only the `<Icon>` element in your saved Docker template XML, so it does not stop, restart, recreate, or otherwise modify your application containers.
