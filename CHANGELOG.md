@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11
+
+- Render external `net.unraid.docker.icon` labels through the same Unraid WebGUI cache URL used on the Docker page, avoiding direct browser requests to third-party icon hosts.
+
 ## 0.1.10
 
 - Display the exact `net.unraid.docker.icon` used by Unraid when a Compose container points to an HTTP(S) icon or a host path under `/mnt/user` and no materialized cache is available.

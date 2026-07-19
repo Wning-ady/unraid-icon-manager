@@ -92,10 +92,10 @@ npm run check
 
 ## 发布
 
-推送例如 `v0.1.10` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
+推送例如 `v0.1.11` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.10`
+- `waning/unraid-icon-manager:v0.1.11`
 - `waning/unraid-icon-manager:v0.1`
 
 仓库维护者需要配置 `DOCKERHUB_USERNAME=waning` 与 `DOCKERHUB_TOKEN` 两个 GitHub Actions Secret。凭据不会保存在仓库中。

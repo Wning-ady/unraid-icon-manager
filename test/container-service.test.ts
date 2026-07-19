@@ -123,7 +123,11 @@ test("resolves the exact Unraid icon label without reading arbitrary host paths"
     resolveUnraidLabelIcon("http://192.168.1.10:5000/Docker", "/mnt/user/docker/media/icons/app icon.png"),
     "http://192.168.1.10:5000/mnt/user/docker/media/icons/app%20icon.png"
   );
-  assert.equal(resolveUnraidLabelIcon("http://unraid/Docker", "https://cdn.example/icon.png"), "https://cdn.example/icon.png");
+  assert.equal(
+    resolveUnraidLabelIcon("http://unraid:5000/Docker", "https://cdn.example/icon.png", "compose-app"),
+    "http://unraid:5000/state/plugins/dynamix.docker.manager/images/compose-app-icon.png"
+  );
+  assert.equal(resolveUnraidLabelIcon(undefined, "https://cdn.example/icon.png", "compose-app"), "https://cdn.example/icon.png");
   assert.equal(resolveUnraidLabelIcon("http://unraid/Docker", "/etc/passwd"), null);
   assert.equal(resolveUnraidLabelIcon("http://unraid/Docker", "/mnt/user/icons/../secret.png"), null);
 });

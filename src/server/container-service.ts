@@ -5,11 +5,17 @@ import { listTemplates } from "./template-service.js";
 import { findUnraidIconCache } from "./unraid-cache-service.js";
 
 /** Resolves only the explicit icon label Unraid itself renders for this container. */
-export function resolveUnraidLabelIcon(unraidDockerUrl: string | undefined, rawIcon: string | undefined): string | null {
+export function resolveUnraidLabelIcon(unraidDockerUrl: string | undefined, rawIcon: string | undefined, containerName?: string): string | null {
   if (!rawIcon) return null;
   try {
     const icon = new URL(rawIcon);
-    if (icon.protocol === "http:" || icon.protocol === "https:") return icon.toString();
+    if (icon.protocol === "http:" || icon.protocol === "https:") {
+      if (unraidDockerUrl && containerName && /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(containerName)) {
+        const dockerPage = new URL(unraidDockerUrl);
+        return new URL(`/state/plugins/dynamix.docker.manager/images/${encodeURIComponent(containerName)}-icon.png`, dockerPage.origin).toString();
+      }
+      return icon.toString();
+    }
   } catch { /* Local Unraid paths are handled below. */ }
   if (!unraidDockerUrl || !rawIcon.startsWith("/mnt/user/") || rawIcon.includes("\\")) return null;
   const segments = rawIcon.split("/");
@@ -49,7 +55,7 @@ export async function listManagedContainers(config: AppConfig): Promise<{ contai
       container.displayIconSource = "unraid-cache";
       return;
     }
-    const labelIcon = resolveUnraidLabelIcon(config.unraidDockerUrl, summariesById.get(container.id)?.Labels?.["net.unraid.docker.icon"]);
+    const labelIcon = resolveUnraidLabelIcon(config.unraidDockerUrl, summariesById.get(container.id)?.Labels?.["net.unraid.docker.icon"], container.name);
     if (labelIcon) {
       container.displayIcon = labelIcon;
       container.displayIconSource = "unraid-label";
