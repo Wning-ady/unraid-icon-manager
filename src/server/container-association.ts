@@ -78,6 +78,8 @@ export function associateManagedContainers(templates: TemplateRecord[], summarie
         name,
         fileName: associated?.template.fileName ?? null,
         icon: associated?.template.icon ?? null,
+        displayIcon: associated?.template.icon ?? null,
+        displayIconSource: associated?.template.icon ? "template" as const : null,
         templateMatch: associated?.match ?? null,
         editable: true,
         composeManaged,

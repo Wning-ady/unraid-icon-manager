@@ -25,6 +25,8 @@ test("associates a deployed container with a template by exact Name", () => {
   assert.equal(containers[0].name, "plex");
   assert.equal(containers[0].fileName, "my-plex.xml");
   assert.equal(containers[0].icon, "plex.png");
+  assert.equal(containers[0].displayIcon, "plex.png");
+  assert.equal(containers[0].displayIconSource, "template");
   assert.equal(containers[0].editable, true);
   assert.equal(containers[0].templateMatch, "name");
 });
@@ -65,6 +67,7 @@ test("keeps a deployed container without a matching template visible and marks t
   assert.equal(containers[0].id, "container-unmatched");
   assert.equal(containers[0].fileName, null);
   assert.equal(containers[0].icon, null);
+  assert.equal(containers[0].displayIcon, null);
   assert.equal(containers[0].editable, true);
   assert.equal(containers[0].templateMatch, null);
   assert.equal(containers[0].templateState, "will-create");

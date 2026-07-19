@@ -3,7 +3,7 @@ import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, writeUnraidIconCache } from "../src/server/unraid-cache-service.ts";
+import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, writeUnraidIconCache } from "../src/server/unraid-cache-service.ts";
 import type { AppConfig } from "../src/server/types.ts";
 
 test("invalidates only the selected container's persistent and RAM Unraid icon caches", async () => {
@@ -15,6 +15,7 @@ test("invalidates only the selected container's persistent and RAM Unraid icon c
     await writeFile(join(directory, "other-icon.png"), "other");
   }
   const config = { iconCacheDir: persistent, iconCacheRamDir: ram } as AppConfig;
+  assert.equal(await findUnraidIconCache({ ...config, maxUploadBytes: 1024 }, "target"), join(ram, "target-icon.png"));
   await invalidateUnraidIconCache(config, "target");
   await assert.rejects(access(join(persistent, "target-icon.png")));
   await assert.rejects(access(join(ram, "target-icon.png")));

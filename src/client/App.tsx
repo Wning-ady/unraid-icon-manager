@@ -5,6 +5,8 @@ interface Container {
   id: string;
   fileName: string | null;
   icon: string | null;
+  displayIcon: string | null;
+  displayIconSource: "unraid-cache" | "template" | null;
   image: string;
   state: string;
   status: string;
@@ -12,12 +14,13 @@ interface Container {
   templateState: "linked" | "will-create" | "generated";
   iconCandidates: Array<{ value: string; source: "container-label" | "image-label" | "unraid-template"; labelKey: string }>;
 }
-interface Audit { id: number; containerName: string; oldIcon: string | null; newIcon: string | null; createdAt: string; result: string; }
+interface Audit { id: number; containerName: string; oldIcon: string | null; newIcon: string | null; createdAt: string; result: string; revertsAuditId: number | null; revertedByAuditId: number | null; }
 interface StoredIcon { fileName: string; previewUrl: string; icon: string; bytes: number; createdAt: string; }
 interface AboutMeta { version: string; githubUrl: string; }
 
 function iconPreviewSource(value: string): string | null {
   if (/^https?:\/\//i.test(value)) return value;
+  if (/^\/api\/containers\/icon-cache\/[A-Za-z0-9_.%-]+$/.test(value)) return value;
   const fileName = value.split("/").pop() ?? "";
   return /^[a-f0-9]{64}\.png$/.test(fileName) ? `/api/icons/file/${fileName}` : null;
 }
@@ -43,7 +46,7 @@ function AuditIcon({ value, label }: { value: string | null; label: string }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [value]);
   const source = iconPreviewSource(value ?? "");
-  return <div className="audit-icon"><span>{label}</span><div>{source && !failed ? <img src={source} alt={label} onError={() => setFailed(true)} /> : <b>无预览</b>}</div><small title={value ?? "无图标"}>{value ?? "无图标"}</small></div>;
+  return <div className="audit-icon"><div className="audit-thumb">{source && !failed ? <img src={source} alt={label} onError={() => setFailed(true)} /> : <b>—</b>}</div><div className="audit-icon-copy"><span>{label}</span><small title={value ?? "无图标"}>{value ?? "无图标"}</small></div></div>;
 }
 
 function stateLabel(state: string): string {
@@ -57,7 +60,7 @@ function templateNote(container: Container): string {
 }
 
 function ContainerCardBody({ container }: { container: Container }) {
-  return <><ContainerIcon value={container.icon} /><div className="card-content"><div className="card-topline"><strong>{container.name}</strong><span className={`state ${container.state}`} title={container.status}>{stateLabel(container.state)}</span></div><p className="image-name">{container.image}</p><p className={`template-note ${container.templateState === "will-create" ? "will-create" : "editable"}`}>{templateNote(container)}</p></div></>;
+  return <><ContainerIcon value={container.displayIcon} /><div className="card-content"><div className="card-topline"><strong>{container.name}</strong><span className={`state ${container.state}`} title={container.status}>{stateLabel(container.state)}</span></div><p className="image-name">{container.image}</p><p className={`template-note ${container.templateState === "will-create" ? "will-create" : "editable"}`}>{templateNote(container)}</p></div></>;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -106,6 +109,18 @@ export function App() {
   const linkedCount = containers.filter((container) => container.templateState !== "will-create").length;
   const runningCount = containers.filter((container) => container.state.toLowerCase() === "running").length;
   const stoppedCount = containers.filter((container) => container.state.toLowerCase() === "exited").length;
+  const actionableAuditIds = useMemo(() => {
+    const ids = new Set<number>();
+    const seenContainers = new Set<string>();
+    const byName = new Map(containers.map((container) => [container.name, container]));
+    for (const audit of audits) {
+      if (seenContainers.has(audit.containerName)) continue;
+      seenContainers.add(audit.containerName);
+      const container = byName.get(audit.containerName);
+      if (audit.result === "applied" && !audit.revertedByAuditId && container?.icon === audit.newIcon) ids.add(audit.id);
+    }
+    return ids;
+  }, [audits, containers]);
   const toggle = (container: Container) => setSelected((old) => {
     const next = new Set(old);
     if (next.has(container.id)) next.delete(container.id); else next.add(container.id);
@@ -205,14 +220,14 @@ export function App() {
       <div className="preview"><h2>预览</h2><IconPreview value={icon} alt="图标预览" /><small>上传图标通过本工具的 HTTP 地址提供给 Unraid，避免本地路径无法下载。</small></div>
     </section>
     <section><div className="section-title"><div><h2>当前 Docker 容器</h2><span>点击任意容器直接换图标；复选框用于批量选择</span></div><span className="result-count">{filtered.length} 个结果</span></div><div className="container-grid">{filtered.map((container) => <article className={`${selected.has(container.id) ? "card selected" : "card"}`} key={container.id}><label className="card-select"><input aria-label={`批量选择 ${container.name}`} type="checkbox" checked={selected.has(container.id)} onChange={() => toggle(container)} /></label><button className="card-open" aria-label={`更换 ${container.name} 的图标`} onClick={() => openEditor(container)}><ContainerCardBody container={container} /></button></article>)}</div></section>
-    <section className="audit-history" id="audit-history"><div className="section-title"><div><h2>最近变更</h2><span>显示修改前与修改后的图标；回滚会恢复模板和两级缓存</span></div><span className="result-count">{audits.length} 条</span></div><div className="audit-list">{audits.length ? audits.slice(0, 20).map((audit) => <article className="audit-detail" key={audit.id}><header><div><strong>{audit.containerName}</strong><span className={audit.result === "applied" ? "audit-result applied" : "audit-result restored"}>{audit.result === "applied" ? "已应用" : "已回滚"}</span></div><time>{new Date(audit.createdAt).toLocaleString()}</time></header><div className="audit-change"><AuditIcon value={audit.oldIcon} label="之前" /><span className="audit-arrow">→</span><AuditIcon value={audit.newIcon} label="现在" /></div>{audit.result === "applied" && <button className="secondary" onClick={() => void restore(audit.id)}>回滚这次修改</button>}</article>) : <div className="empty-gallery">还没有图标变更记录。</div>}</div></section>
+    <section className="audit-history" id="audit-history"><div className="section-title"><div><h2>最近变更</h2><span>这里显示每次操作的历史快照；只有当前仍生效的最新记录可以回滚</span></div><span className="result-count">{audits.length} 条</span></div><div className="audit-list">{audits.length ? audits.slice(0, 20).map((audit) => { const canRestore = actionableAuditIds.has(audit.id); const wasReverted = Boolean(audit.revertedByAuditId); return <article className="audit-detail" key={audit.id}><header><div><strong>{audit.containerName}</strong><span className={audit.result === "applied" && !wasReverted ? "audit-result applied" : "audit-result restored"}>{audit.result === "restored" ? "回滚事件" : wasReverted ? "已被回滚" : "已应用"}</span></div><div className="audit-header-actions"><time>{new Date(audit.createdAt).toLocaleString()}</time>{canRestore && <button className="secondary" onClick={() => void restore(audit.id)}>回滚</button>}</div></header><div className="audit-change"><AuditIcon value={audit.oldIcon} label="本次变更前" /><span className="audit-arrow">→</span><AuditIcon value={audit.newIcon} label="本次变更后" /></div><details className="audit-paths"><summary>查看完整图标地址</summary><div><span>本次变更前</span><code>{audit.oldIcon ?? "无图标"}</code><span>本次变更后</span><code>{audit.newIcon ?? "无图标"}</code></div></details></article>; }) : <div className="empty-gallery">还没有图标变更记录。</div>}</div></section>
       </>}
       {page === "gallery" && <section className="gallery-page"><div className="gallery-heading"><div><h2>已保存图标</h2><p>上传过的图片按内容去重并永久保存在 <code>/config/icons</code>，重启和升级后仍可使用。</p></div><label className="upload gallery-upload">上传新图标<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={upload} disabled={busy} /></label></div>{gallery.length ? <div className="gallery-grid">{gallery.map((asset) => <article className="gallery-item" key={asset.fileName}><img src={asset.previewUrl} alt="图库图标" /><div><span>{new Date(asset.createdAt).toLocaleString()}</span><small>{Math.max(1, Math.round(asset.bytes / 1024))} KB</small></div><button onClick={() => { setIcon(asset.icon); setPage("dashboard"); setNotice("已从图库选择图标，请选择容器后应用。"); }}>用于批量设置</button></article>)}</div> : <div className="empty-gallery">还没有图标。上传一次后，它会自动出现在这里。</div>}</section>}
       {page === "about" && <section className="about-page">
         <div className="about-intro"><p className="eyebrow">OPEN SOURCE · SELF HOSTED</p><h2>最后的最后</h2><p>如果您觉得 Unraid Icon Manager 对您有帮助，可以请我喝一瓶快乐水。您的支持是我持续维护和更新项目的最大动力！</p><div className="project-meta"><span>当前版本 <b>v{about.version}</b></span><a href={about.githubUrl} target="_blank" rel="noreferrer">在 GitHub 查看项目 ↗</a></div><p className="about-muted">感谢每一位使用、反馈和分享这个项目的朋友。</p></div>
         <div className="donation-grid"><figure><div className="qr-frame"><img src="/donate/alipay.jpg" alt="支付宝赞赏二维码" /></div><figcaption><strong>支付宝</strong><span>扫码请我喝快乐水</span></figcaption></figure><figure><div className="qr-frame"><img src="/donate/wechat.jpg" alt="微信赞赏二维码" /></div><figcaption><strong>微信</strong><span>扫码支持持续维护</span></figcaption></figure></div>
       </section>}
-      {editing && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}><section className="icon-modal" role="dialog" aria-modal="true" aria-labelledby="icon-modal-title"><div className="modal-header"><div><p className="eyebrow">单容器图标</p><h2 id="icon-modal-title">{editing.name}</h2><small>{stateLabel(editing.state)} · {editing.image}</small></div><button className="modal-close secondary" aria-label="关闭更换图标弹窗" disabled={busy} onClick={closeEditor}>×</button></div><div className="modal-body"><div className="modal-preview"><IconPreview value={modalIcon} alt={`${editing.name} 图标预览`} /></div><div><label>图标 URL 或上传后的地址<input autoFocus value={modalIcon} placeholder="https://…" onChange={(event) => { setModalIcon(event.target.value); setModalError(""); }} /></label><div className="icon-source-actions"><label className="upload">上传 PNG / SVG / WebP<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={uploadForModal} disabled={busy} /></label><button className="secondary" type="button" onClick={() => setShowModalGallery((value) => !value)}>从图库中选择</button></div>{!editing.icon && editing.iconCandidates.length > 0 && <div className="discovered-icons"><strong>发现 {editing.iconCandidates.length} 个图标候选</strong>{editing.iconCandidates.map((candidate) => <button className="secondary" key={`${candidate.source}-${candidate.value}`} onClick={() => setModalIcon(candidate.value)}>{candidate.source === "container-label" ? "Compose / 容器标签" : candidate.source === "image-label" ? "本地镜像标签" : "同镜像 Unraid 模板"}：{candidate.labelKey}</button>)}</div>}<p className="modal-hint">{templateNote(editing)}。不会修改 Compose，也不会重启容器。</p>{modalError && <p className="modal-error" role="alert">{modalError}</p>}</div></div>{showModalGallery && <div className="modal-gallery">{gallery.length ? gallery.map((asset) => <button key={asset.fileName} className={modalIcon === asset.icon ? "chosen" : ""} onClick={() => { setModalIcon(asset.icon); setShowModalGallery(false); }}><img src={asset.previewUrl} alt="选择图库图标" /></button>) : <span>图库为空，请先上传一个图标。</span>}</div>}<div className="modal-actions"><button className="secondary" disabled={busy} onClick={closeEditor}>取消</button><button disabled={busy || !modalIcon.trim()} onClick={() => void applyOne()}>{busy ? "处理中…" : `仅应用到 ${editing.name}`}</button></div></section></div>}
+      {editing && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}><section className="icon-modal" role="dialog" aria-modal="true" aria-labelledby="icon-modal-title"><div className="modal-header"><div><p className="eyebrow">单容器图标</p><h2 id="icon-modal-title">{editing.name}</h2><small>{stateLabel(editing.state)} · {editing.image}</small></div><button className="modal-close secondary" aria-label="关闭更换图标弹窗" disabled={busy} onClick={closeEditor}>×</button></div><div className="modal-body"><div className="modal-preview"><IconPreview value={modalIcon || editing.displayIcon || ""} alt={`${editing.name} 图标预览`} /></div><div><label>图标 URL 或上传后的地址<input autoFocus value={modalIcon} placeholder="https://…" onChange={(event) => { setModalIcon(event.target.value); setModalError(""); }} /></label><div className="icon-source-actions"><label className="upload">上传 PNG / SVG / WebP<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={uploadForModal} disabled={busy} /></label><button className="secondary" type="button" onClick={() => setShowModalGallery((value) => !value)}>从图库中选择</button></div>{!editing.icon && editing.iconCandidates.length > 0 && <div className="discovered-icons"><strong>发现 {editing.iconCandidates.length} 个图标候选</strong>{editing.iconCandidates.map((candidate) => <button className="secondary" key={`${candidate.source}-${candidate.value}`} onClick={() => setModalIcon(candidate.value)}>{candidate.source === "container-label" ? "Compose / 容器标签" : candidate.source === "image-label" ? "本地镜像标签" : "同镜像 Unraid 模板"}：{candidate.labelKey}</button>)}</div>}<p className="modal-hint">{editing.displayIconSource === "unraid-cache" && !editing.icon ? "左侧显示的是 Unraid 当前缓存图标；请选择候选、图库或上传后再保存。" : ""}{templateNote(editing)}。不会修改 Compose，也不会重启容器。</p>{modalError && <p className="modal-error" role="alert">{modalError}</p>}</div></div>{showModalGallery && <div className="modal-gallery">{gallery.length ? gallery.map((asset) => <button key={asset.fileName} className={modalIcon === asset.icon ? "chosen" : ""} onClick={() => { setModalIcon(asset.icon); setShowModalGallery(false); }}><img src={asset.previewUrl} alt="选择图库图标" /></button>) : <span>图库为空，请先上传一个图标。</span>}</div>}<div className="modal-actions"><button className="secondary" disabled={busy} onClick={closeEditor}>取消</button><button disabled={busy || !modalIcon.trim()} onClick={() => void applyOne()}>{busy ? "处理中…" : `仅应用到 ${editing.name}`}</button></div></section></div>}
     </main>
   </div>;
 }

@@ -8,7 +8,7 @@ import type { AppConfig, ManagedContainer } from "../src/server/types.ts";
 
 const activeContainer: ManagedContainer = {
   name: "active", id: "active-id", image: "example/active", state: "running", status: "Up 1 minute",
-  fileName: "my-active.xml", icon: "old.png", editable: true, templateMatch: "name", composeManaged: false, templateState: "linked", iconCandidates: []
+  fileName: "my-active.xml", icon: "old.png", displayIcon: "old.png", displayIconSource: "template", editable: true, templateMatch: "name", composeManaged: false, templateState: "linked", iconCandidates: []
 };
 
 test("applies by deployed container id, invalidates caches, and rejects removed containers", async () => {
@@ -45,6 +45,12 @@ test("applies by deployed container id, invalidates caches, and rejects removed 
 
     await writeFile(join(cacheDir, "active-icon.png"), "old");
     await writeFile(join(cacheRamDir, "active-icon.png"), "old");
+    const cachedIcon = await app.inject({ method: "GET", url: "/api/containers/icon-cache/active" });
+    assert.equal(cachedIcon.statusCode, 200);
+    assert.equal(cachedIcon.body, "old");
+    assert.match(cachedIcon.headers["content-type"] ?? "", /image\/png/);
+    const invalidCachedIcon = await app.inject({ method: "GET", url: "/api/containers/icon-cache/..%2Fescape" });
+    assert.equal(invalidCachedIcon.statusCode, 400);
     const rejected = await app.inject({ method: "POST", url: "/api/icons/apply", payload: { containerIds: ["removed-id"], icon: "https://example.com/icon.png" } });
     assert.equal(rejected.statusCode, 400);
 
@@ -69,6 +75,10 @@ test("applies by deployed container id, invalidates caches, and rejects removed 
     assert.match(await readFile(join(templatesDir, "my-active.xml"), "utf8"), /<Icon>old\.png<\/Icon>/);
     assert.equal(await readFile(join(cacheDir, "active-icon.png"), "utf8"), "old");
     assert.equal(await readFile(join(cacheRamDir, "active-icon.png"), "utf8"), "old");
+    const auditList = await app.inject({ method: "GET", url: "/api/audits" });
+    const records = auditList.json() as Array<{ id: number; revertsAuditId: number | null; revertedByAuditId: number | null }>;
+    assert.equal(records[0].revertsAuditId, auditId);
+    assert.equal(records.find((record) => record.id === auditId)?.revertedByAuditId, records[0].id);
   } finally {
     await app.close();
   }

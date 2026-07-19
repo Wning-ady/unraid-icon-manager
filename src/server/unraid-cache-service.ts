@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { AppConfig, IconCacheBackup } from "./types.js";
@@ -6,6 +6,20 @@ import type { AppConfig, IconCacheBackup } from "./types.js";
 function cacheFileName(containerName: string): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(containerName)) throw new Error("Invalid container name for Unraid icon cache");
   return `${containerName}-icon.png`;
+}
+
+/** Returns only a validated, regular, size-limited Unraid cache PNG. */
+export async function findUnraidIconCache(config: AppConfig, containerName: string): Promise<string | null> {
+  const fileName = cacheFileName(containerName);
+  for (const directory of [config.iconCacheRamDir, config.iconCacheDir]) {
+    if (!directory) continue;
+    const candidate = join(directory, fileName);
+    try {
+      const metadata = await lstat(candidate);
+      if (metadata.isFile() && metadata.size > 0 && metadata.size <= config.maxUploadBytes) return candidate;
+    } catch { /* Missing cache is a normal state. */ }
+  }
+  return null;
 }
 
 /**

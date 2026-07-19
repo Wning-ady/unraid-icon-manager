@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.9
+
+- Show the icon that Unraid is actually rendering from its current RAM or persistent cache, including Compose containers without a matching user template.
+- Keep the displayed Unraid icon separate from the editable template value so existing Compose icons are visible without treating cached state as persistent metadata.
+- Compact recent-change entries into small before/after thumbnails, retain full icon addresses in expandable details, and offer rollback only for the latest change that is still active.
+- Link new rollback audit events to the change they restore so history labels distinguish applied, reverted, and rollback events.
+
 ## 0.1.8
 
 - Use the file modification time for gallery assets on Unraid filesystems that do not expose a birth time, avoiding a misleading 1970 timestamp.

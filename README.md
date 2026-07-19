@@ -12,6 +12,7 @@ Bulk-manage icons for **currently deployed** Unraid Docker containers from a sma
 ## Features
 
 - Lists the containers deployed through Docker now, rather than historical template files.
+- Shows the icon Unraid is currently rendering from its live/persistent cache, including Compose containers whose icon is not stored in a user template.
 - Lets every current container receive an icon. Existing matching templates are updated; when none exists, it creates a clearly marked, auditable dedicated metadata template that matches the live container name and image without colliding with existing `my-*.xml` files.
 - Does not edit Compose files, call Docker mutation APIs, or recreate Compose, third-party, or Docker Manager containers.
 - Searches, multi-selects, and opens a focused single-container icon editor by clicking any container card.
@@ -71,7 +72,7 @@ docker compose up -d
 3. Apply the icon. If the container has no matching template, the app creates a marked metadata template first.
 4. Use **Refresh Docker Page** after saving. Uploaded PNGs are already materialized; external URLs are fetched by Unraid when the page opens. No application container is restarted.
 
-Each update backs up its original XML under `/config/backups/` and appears in **Recent changes**. **Rollback** restores the backup; when the audit created a template, it removes that generated template only if it is still unchanged. Refresh the Docker page afterwards.
+Each update backs up its original XML under `/config/backups/` and appears in **Recent changes** as a compact historical before/after snapshot. Expand an entry to inspect complete icon addresses. **Rollback** is offered only for the latest change that still matches the current template; it restores the template and both prior Unraid cache copies. When the audit created a template, rollback removes that generated template only if it is still unchanged. Refresh the Docker page afterwards.
 
 ## Upgrade and rollback
 
@@ -91,10 +92,10 @@ Set local paths and reachable URLs in `.env.example`. The production image targe
 
 ## Publishing
 
-Push a tag such as `v0.1.8` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.9` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.8`
+- `waning/unraid-icon-manager:v0.1.9`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.

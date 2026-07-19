@@ -8,7 +8,7 @@ import { listManagedContainers } from "./container-service.js";
 import { createGeneratedTemplate, getTemplate, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "./template-service.js";
 import { listStoredIcons, storeUploadedIcon } from "./icon-service.js";
 import { validateIconUrl } from "./icon-validation.js";
-import { invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
+import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
 
 function stringArray(value: unknown, label: string): string[] {
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error(`${label} must be a string array`);
@@ -62,6 +62,14 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
   }));
   app.get("/api/about", async () => ({ version: appVersion, githubUrl: "https://github.com/Wning-ady/unraid-icon-manager" }));
   app.get("/api/containers", async () => listContainers(config));
+  app.get("/api/containers/icon-cache/:containerName", async (request, reply) => {
+    try {
+      const containerName = (request.params as { containerName: string }).containerName;
+      const cachePath = await findUnraidIconCache(config, containerName);
+      if (!cachePath) return reply.code(404).send({ message: "Container icon cache not found" });
+      return reply.header("cache-control", "no-cache").type("image/png").send(createReadStream(cachePath));
+    } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
+  });
   app.get("/api/audits", async () => database.listAudits());
 
   app.post("/api/icons/upload", async (request, reply) => {
@@ -119,7 +127,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
             templateCreated = true;
           }
           cacheBackup = await mutateUnraidIconCache(config, container.name, iconPng);
-          auditRecord = database.addAudit({ containerName: container.name, templateFile: fileName, oldIcon, newIcon: icon, backupFile, cacheBackup, templateCreated, createdAt: new Date().toISOString(), result: "applied" });
+          auditRecord = database.addAudit({ containerName: container.name, templateFile: fileName, oldIcon, newIcon: icon, backupFile, cacheBackup, revertsAuditId: null, revertedByAuditId: null, templateCreated, createdAt: new Date().toISOString(), result: "applied" });
         } catch (error) {
           const recoveryErrors: unknown[] = [];
           if (cacheBackup) {
@@ -184,7 +192,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         cacheMutationStarted = true;
         if (audit.cacheBackup) await restoreUnraidIconCache(config, audit.containerName, audit.cacheBackup);
         else await invalidateUnraidIconCache(config, audit.containerName);
-        restored = database.addAudit({ containerName: audit.containerName, templateFile: audit.templateFile, oldIcon: audit.newIcon, newIcon: audit.oldIcon, backupFile: audit.backupFile, cacheBackup: null, templateCreated: false, createdAt: new Date().toISOString(), result: "restored" });
+        restored = database.addAudit({ containerName: audit.containerName, templateFile: audit.templateFile, oldIcon: audit.newIcon, newIcon: audit.oldIcon, backupFile: audit.backupFile, cacheBackup: null, revertsAuditId: audit.id, revertedByAuditId: null, templateCreated: false, createdAt: new Date().toISOString(), result: "restored" });
       } catch (error) {
         const recoveryErrors: unknown[] = [];
         if (cacheMutationStarted && currentCacheBackup) {

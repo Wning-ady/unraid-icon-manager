@@ -35,6 +35,9 @@ export interface ManagedContainer {
   status: string;
   fileName: string | null;
   icon: string | null;
+  /** What Unraid currently renders, kept separate from the persisted template Icon. */
+  displayIcon: string | null;
+  displayIconSource: "unraid-cache" | "template" | null;
   editable: boolean;
   templateMatch: "name" | "file" | null;
   composeManaged: boolean;
@@ -64,6 +67,8 @@ export interface AuditRecord {
   newIcon: string | null;
   backupFile: string;
   cacheBackup: IconCacheBackup | null;
+  revertsAuditId: number | null;
+  revertedByAuditId: number | null;
   templateCreated: boolean;
   createdAt: string;
   result: "applied" | "restored";

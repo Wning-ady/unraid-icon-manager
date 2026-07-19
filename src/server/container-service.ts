@@ -2,6 +2,7 @@ import Docker from "dockerode";
 import type { AppConfig, ManagedContainer } from "./types.js";
 import { associateManagedContainers, type DockerSummary } from "./container-association.js";
 import { listTemplates } from "./template-service.js";
+import { findUnraidIconCache } from "./unraid-cache-service.js";
 
 export async function listManagedContainers(config: AppConfig): Promise<{ containers: ManagedContainer[]; dockerAvailable: boolean }> {
   const templates = await listTemplates(config);
@@ -24,8 +25,15 @@ export async function listManagedContainers(config: AppConfig): Promise<{ contai
   } catch {
     dockerAvailable = false;
   }
+  const containers = dockerAvailable ? associateManagedContainers(templates, summaries, imageLabels) : [];
+  await Promise.all(containers.map(async (container) => {
+    if (await findUnraidIconCache(config, container.name)) {
+      container.displayIcon = `/api/containers/icon-cache/${encodeURIComponent(container.name)}`;
+      container.displayIconSource = "unraid-cache";
+    }
+  }));
   return {
     dockerAvailable,
-    containers: dockerAvailable ? associateManagedContainers(templates, summaries, imageLabels) : []
+    containers
   };
 }
