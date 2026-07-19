@@ -35,6 +35,8 @@ export function loadConfig(env = process.env): AppConfig {
     maxWallpaperBytes: Number(env.MAX_WALLPAPER_BYTES ?? 30 * 1024 * 1024),
     iconCacheDir: requiredDirectory(env.ICON_CACHE_DIR ?? "/unraid/icon-cache", "ICON_CACHE_DIR"),
     iconCacheRamDir: requiredDirectory(env.ICON_CACHE_RAM_DIR ?? "/unraid/icon-cache-ram", "ICON_CACHE_RAM_DIR"),
+    composeProjectsDir: env.COMPOSE_PROJECTS_DIR ? requiredDirectory(env.COMPOSE_PROJECTS_DIR, "COMPOSE_PROJECTS_DIR") : undefined,
+    composeHostRoot: env.COMPOSE_HOST_ROOT ? requiredDirectory(env.COMPOSE_HOST_ROOT, "COMPOSE_HOST_ROOT") : undefined,
     publicBaseUrl: optionalHttpUrl(env.PUBLIC_BASE_URL, "PUBLIC_BASE_URL"),
     unraidDockerUrl: optionalHttpUrl(env.UNRAID_DOCKER_URL, "UNRAID_DOCKER_URL") ?? "/Docker"
   };

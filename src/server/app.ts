@@ -12,6 +12,7 @@ import { validateIconUrl } from "./icon-validation.js";
 import { downloadRemoteImage } from "./remote-image-service.js";
 import { deleteWallpaper, listWallpaperFiles, storeWallpaper, wallpaperPath } from "./wallpaper-service.js";
 import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
+import { synchronizeContainerIcon } from "./container-sync-service.js";
 
 function stringArray(value: unknown, label: string): string[] {
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error(`${label} must be a string array`);
@@ -47,13 +48,14 @@ function ownIconFile(config: AppConfig, value: string): string | null {
   return /^[a-f0-9]{64}\.png$/.test(fileName) && existsSync(join(config.iconsDir, fileName)) ? fileName : null;
 }
 
-export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage } = {}) {
+export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage; synchronizeContainerIcon?: typeof synchronizeContainerIcon } = {}) {
   const bodyBytes = Math.max(config.maxUploadBytes, config.maxWallpaperBytes ?? config.maxUploadBytes);
   const app = Fastify({ logger: true, bodyLimit: Math.ceil(bodyBytes * 4 / 3) + 16_384 });
   const database = new AppDatabase(config);
   const clientRoot = join(process.cwd(), "dist/client");
   const listContainers = dependencies.listManagedContainers ?? listManagedContainers;
   const downloadImage = dependencies.downloadRemoteImage ?? downloadRemoteImage;
+  const syncIcon = dependencies.synchronizeContainerIcon ?? synchronizeContainerIcon;
   let iconMutationTail = Promise.resolve();
   async function withIconMutation<T>(operation: () => Promise<T>): Promise<T> {
     const previous = iconMutationTail;
@@ -186,7 +188,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         }
         results.push(auditRecord);
       }
-      return { results, icon, refreshUrl: config.unraidDockerUrl, notice: "图标已下载到图库并写入 Unraid 缓存；请点击刷新按钮查看。容器没有重启或重建。" };
+      return { results, icon, refreshUrl: config.unraidDockerUrl, notice: "图标已下载到图库（或确认已在图库中），并保存到模板和缓存。要让 Unraid WebGUI 与 Compose Manager 使用新的运行标签，请点击下方同步按钮。" };
     } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); } });
   });
 
@@ -247,14 +249,17 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
   });
 
   app.post("/api/unraid/refresh", async (request, reply) => {
-    try {
+    return withIconMutation(async () => { try {
       const body = request.body as { containerIds?: unknown };
       const containerIds = stringArray(body.containerIds, "containerIds");
+      if (!containerIds.length) throw new Error("Select at least one container");
       const containers = (await listContainers(config)).containers;
       const byId = new Map(containers.map((container) => [container.id, container]));
+      const results = [];
       for (const id of containerIds) {
         const container = byId.get(id);
         if (!container) throw new Error(`Container ${id.slice(0, 12)} is no longer deployed`);
+        if (!container.icon) throw new Error(`${container.name} 没有已保存的图标，无法同步`);
         if (container.icon?.startsWith("http://") || container.icon?.startsWith("https://")) {
           const png = await resolveOwnUploadedIconPng(config, container.icon);
           if (png) await writeUnraidIconCache(config, container.name, png);
@@ -262,9 +267,13 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         } else {
           await invalidateUnraidIconCache(config, container.name);
         }
+        results.push(await syncIcon(config, container, container.icon));
       }
-      return { url: config.unraidDockerUrl, notice: "Unraid 图标缓存已清除" };
-    } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
+      const recreated = results.filter((result) => result.recreated).length;
+      const composeUpdated = results.filter((result) => result.composeOverrideUpdated).length;
+      return { url: config.unraidDockerUrl, results,
+        notice: `同步完成：重建 ${recreated} 个容器${composeUpdated ? `，更新 ${composeUpdated} 个 Compose Manager override` : ""}。数据卷和其他容器未变更。` };
+    } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); } });
   });
 
   app.post("/api/audits/:id/restore", async (request, reply) => {

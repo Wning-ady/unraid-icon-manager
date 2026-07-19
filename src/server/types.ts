@@ -15,6 +15,9 @@ export interface AppConfig {
   /** Host Docker Manager's persistent and RAM icon caches, mounted read/write. */
   iconCacheDir?: string;
   iconCacheRamDir?: string;
+  /** Compose Manager projects, mounted read/write only when label persistence is enabled. */
+  composeProjectsDir?: string;
+  composeHostRoot?: string;
   /** Public URL used by Unraid itself to download uploaded icons. */
   publicBaseUrl?: string;
   unraidDockerUrl?: string;
@@ -99,4 +102,11 @@ export interface AuditRecord {
 export interface IconCacheBackup {
   persistent: string | null;
   ram: string | null;
+}
+
+export interface IconSyncResult {
+  containerName: string;
+  containerId: string;
+  recreated: boolean;
+  composeOverrideUpdated: boolean;
 }
