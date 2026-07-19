@@ -39,14 +39,21 @@ export interface ManagedContainer {
   templateMatch: "name" | "file" | null;
   composeManaged: boolean;
   templateState: "linked" | "will-create" | "generated";
+  iconCandidates: IconCandidate[];
 }
 
-export interface Group {
-  id: number;
-  name: string;
-  containerNames: string[];
+export interface IconCandidate {
+  value: string;
+  source: "container-label" | "image-label" | "unraid-template";
+  labelKey: string;
+}
+
+export interface StoredIcon {
+  fileName: string;
+  previewUrl: string;
+  icon: string;
+  bytes: number;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface AuditRecord {
@@ -56,7 +63,13 @@ export interface AuditRecord {
   oldIcon: string | null;
   newIcon: string | null;
   backupFile: string;
+  cacheBackup: IconCacheBackup | null;
   templateCreated: boolean;
   createdAt: string;
   result: "applied" | "restored";
+}
+
+export interface IconCacheBackup {
+  persistent: string | null;
+  ram: string | null;
 }

@@ -10,9 +10,11 @@ interface Container {
   status: string;
   composeManaged: boolean;
   templateState: "linked" | "will-create" | "generated";
+  iconCandidates: Array<{ value: string; source: "container-label" | "image-label" | "unraid-template"; labelKey: string }>;
 }
-interface Group { id: number; name: string; containerNames: string[]; }
 interface Audit { id: number; containerName: string; oldIcon: string | null; newIcon: string | null; createdAt: string; result: string; }
+interface StoredIcon { fileName: string; previewUrl: string; icon: string; bytes: number; createdAt: string; }
+interface AboutMeta { version: string; githubUrl: string; }
 
 function iconPreviewSource(value: string): string | null {
   if (/^https?:\/\//i.test(value)) return value;
@@ -30,6 +32,20 @@ function IconPreview({ value, alt }: { value: string; alt: string }) {
   return <img src={source} alt={alt} onError={() => setFailed(true)} />;
 }
 
+function ContainerIcon({ value }: { value: string | null }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [value]);
+  const source = iconPreviewSource(value ?? "");
+  return <div className="icon">{source && !failed ? <img src={source} alt="" onError={() => setFailed(true)} /> : "▣"}</div>;
+}
+
+function AuditIcon({ value, label }: { value: string | null; label: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [value]);
+  const source = iconPreviewSource(value ?? "");
+  return <div className="audit-icon"><span>{label}</span><div>{source && !failed ? <img src={source} alt={label} onError={() => setFailed(true)} /> : <b>无预览</b>}</div><small title={value ?? "无图标"}>{value ?? "无图标"}</small></div>;
+}
+
 function stateLabel(state: string): string {
   const labels: Record<string, string> = { running: "运行中", exited: "已停止", created: "已创建", paused: "已暂停", restarting: "重启中", dead: "已失效" };
   return labels[state.toLowerCase()] ?? state;
@@ -41,8 +57,7 @@ function templateNote(container: Container): string {
 }
 
 function ContainerCardBody({ container }: { container: Container }) {
-  const source = iconPreviewSource(container.icon ?? "");
-  return <><div className="icon">{source ? <img src={source} alt="" /> : "▣"}</div><div className="card-content"><div className="card-topline"><strong>{container.name}</strong><span className={`state ${container.state}`} title={container.status}>{stateLabel(container.state)}</span></div><p className="image-name">{container.image}</p><p className={`template-note ${container.templateState === "will-create" ? "will-create" : "editable"}`}>{templateNote(container)}</p></div></>;
+  return <><ContainerIcon value={container.icon} /><div className="card-content"><div className="card-topline"><strong>{container.name}</strong><span className={`state ${container.state}`} title={container.status}>{stateLabel(container.state)}</span></div><p className="image-name">{container.image}</p><p className={`template-note ${container.templateState === "will-create" ? "will-create" : "editable"}`}>{templateNote(container)}</p></div></>;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -53,28 +68,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function App() {
   const [containers, setContainers] = useState<Container[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [audits, setAudits] = useState<Audit[]>([]);
+  const [gallery, setGallery] = useState<StoredIcon[]>([]);
+  const [about, setAbout] = useState<AboutMeta>({ version: "…", githubUrl: "https://github.com/Wning-ady/unraid-icon-manager" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [icon, setIcon] = useState("");
-  const [groupName, setGroupName] = useState("");
   const [notice, setNotice] = useState("正在加载…");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Container | null>(null);
   const [modalIcon, setModalIcon] = useState("");
   const [modalError, setModalError] = useState("");
+  const [showModalGallery, setShowModalGallery] = useState(false);
   const [lastAppliedIds, setLastAppliedIds] = useState<string[]>([]);
+  const [lastRefreshUrl, setLastRefreshUrl] = useState("");
+  const [lastRefreshNeedsSync, setLastRefreshNeedsSync] = useState(false);
   const [refreshingUnraid, setRefreshingUnraid] = useState(false);
-  const [page, setPage] = useState<"dashboard" | "about">("dashboard");
+  const [page, setPage] = useState<"dashboard" | "gallery" | "about">("dashboard");
   const [dockerAvailable, setDockerAvailable] = useState<boolean | null>(null);
 
   const refresh = async () => {
     try {
-      const [containerData, groupData, auditData] = await Promise.all([
-        request<{ containers: Container[]; dockerAvailable: boolean }>("/api/containers"), request<Group[]>("/api/groups"), request<Audit[]>("/api/audits")
+      const [containerData, auditData, galleryData, aboutData] = await Promise.all([
+        request<{ containers: Container[]; dockerAvailable: boolean }>("/api/containers"), request<Audit[]>("/api/audits"),
+        request<StoredIcon[]>("/api/icons"), request<AboutMeta>("/api/about")
       ]);
-      setContainers(containerData.containers); setGroups(groupData); setAudits(auditData);
+      setContainers(containerData.containers); setAudits(auditData);
+      setGallery(galleryData); setAbout(aboutData);
       setDockerAvailable(containerData.dockerAvailable);
       setSelected((previous) => new Set(containerData.containers.filter((container) => previous.has(container.id)).map((container) => container.id)));
       setNotice(containerData.dockerAvailable ? `已读取 ${containerData.containers.length} 个当前 Docker 容器；点击任意容器即可设置图标。` : "Docker socket 不可用，因此无法读取当前已部署容器。");
@@ -92,12 +112,13 @@ export function App() {
     return next;
   });
   const selectAll = () => setSelected(new Set(filtered.map((container) => container.id)));
-  const closeEditor = () => { if (!busy) { setEditing(null); setModalError(""); } };
-  const openEditor = (container: Container) => { setEditing(container); setModalIcon(container.icon ?? ""); setModalError(""); };
+  const closeEditor = () => { if (!busy) { setEditing(null); setModalError(""); setShowModalGallery(false); } };
+  const openEditor = (container: Container) => { setEditing(container); setModalIcon(container.icon ?? ""); setModalError(""); setShowModalGallery(false); };
 
   async function uploadFile(file: File): Promise<string> {
     const contentBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
     const result = await request<{ icon: string }>("/api/icons/upload", { method: "POST", body: JSON.stringify({ contentBase64 }) });
+    setGallery(await request<StoredIcon[]>("/api/icons"));
     return result.icon;
   }
 
@@ -119,8 +140,8 @@ export function App() {
   async function applyTo(containerIds: string[], nextIcon: string, onSuccess?: () => void) {
     setBusy(true);
     try {
-      const result = await request<{ notice: string }>("/api/icons/apply", { method: "POST", body: JSON.stringify({ containerIds, icon: nextIcon }) });
-      setLastAppliedIds(containerIds); setNotice(result.notice || "图标已保存；容器未重启。"); onSuccess?.(); await refresh();
+      const result = await request<{ notice: string; refreshUrl: string }>("/api/icons/apply", { method: "POST", body: JSON.stringify({ containerIds, icon: nextIcon }) });
+      setLastAppliedIds(containerIds); setLastRefreshUrl(result.refreshUrl); setLastRefreshNeedsSync(true); setNotice(result.notice || "图标已保存；容器未重启。"); onSuccess?.(); await refresh();
     } finally { setBusy(false); }
   }
 
@@ -138,28 +159,26 @@ export function App() {
   async function refreshUnraid() {
     if (!lastAppliedIds.length) return;
     setRefreshingUnraid(true);
-    const unraidWindow = window.open("about:blank", "_blank");
+    const unraidWindow = window.open(lastRefreshNeedsSync || !lastRefreshUrl ? "about:blank" : lastRefreshUrl, "_blank");
     try {
-      const result = await request<{ url: string }>("/api/unraid/refresh", { method: "POST", body: JSON.stringify({ containerIds: lastAppliedIds }) });
-      if (unraidWindow) unraidWindow.location.href = result.url;
-      else window.open(result.url, "_blank", "noopener,noreferrer");
+      if (lastRefreshNeedsSync || !lastRefreshUrl) {
+        const result = await request<{ url: string }>("/api/unraid/refresh", { method: "POST", body: JSON.stringify({ containerIds: lastAppliedIds }) });
+        if (unraidWindow) unraidWindow.location.href = result.url;
+        else window.open(result.url, "_blank", "noopener,noreferrer");
+        setLastRefreshUrl(result.url); setLastRefreshNeedsSync(false);
+      } else if (!unraidWindow) window.open(lastRefreshUrl, "_blank", "noopener,noreferrer");
       setNotice("已打开新的 Unraid Docker 页面；页面加载时会显示新图标。");
     } catch (error) { unraidWindow?.close(); setNotice(`刷新 Unraid Docker 图标失败：${error instanceof Error ? error.message : "未知错误"}`); }
     finally { setRefreshingUnraid(false); }
   }
 
-  async function saveGroup() {
-    try { await request<Group>("/api/groups", { method: "POST", body: JSON.stringify({ name: groupName, containerNames: containers.filter((c) => selected.has(c.id)).map((c) => c.name) }) }); setGroupName(""); await refresh(); }
-    catch (error) { setNotice(`保存分组失败：${error instanceof Error ? error.message : "未知错误"}`); }
-  }
-
   async function restore(id: number) {
     if (!confirm("恢复该次修改前的模板？这不会重启容器。")) return;
     try {
-      await request(`/api/audits/${id}/restore`, { method: "POST", body: "{}" });
+      const result = await request<{ refreshUrl: string }>(`/api/audits/${id}/restore`, { method: "POST", body: "{}" });
       const audit = audits.find((entry) => entry.id === id);
       if (audit) setLastAppliedIds(containers.filter((container) => container.name === audit.containerName).map((container) => container.id));
-      setNotice("已回滚图标并清除缓存；请点击刷新按钮查看。"); await refresh();
+      setLastRefreshUrl(result.refreshUrl); setLastRefreshNeedsSync(false); setNotice("已回滚模板与修改前的图标缓存；请点击刷新按钮查看。"); await refresh();
     }
     catch (error) { setNotice(`恢复失败：${error instanceof Error ? error.message : "未知错误"}`); }
   }
@@ -167,11 +186,11 @@ export function App() {
   return <div className="app-shell">
     <aside className="sidebar">
       <button className="brand" onClick={() => setPage("dashboard")} aria-label="回到容器总览"><span className="brand-mark">◇</span><span><b>Icon Manager</b><small>for Unraid</small></span></button>
-      <nav aria-label="主导航"><button className={page === "dashboard" ? "nav-item active" : "nav-item"} onClick={() => setPage("dashboard")}><span>▦</span> 容器图标</button><button className="nav-item" onClick={() => { setPage("dashboard"); window.setTimeout(() => document.getElementById("groups-and-audits")?.scrollIntoView({ behavior: "smooth" }), 0); }}><span>≡</span> 分组与记录</button><button className={page === "about" ? "nav-item active" : "nav-item"} onClick={() => setPage("about")}><span>♡</span> 关于项目</button></nav>
-      <div className="sidebar-footer"><span className={dockerAvailable === false ? "online-dot offline" : "online-dot"} /> {dockerAvailable === null ? "正在连接 Docker Manager" : dockerAvailable ? "Docker Manager 已连接" : "Docker Manager 未连接"}<br /><small>v0.1.6 · 图标写入不会重启容器</small></div>
+      <nav aria-label="主导航"><button className={page === "dashboard" ? "nav-item active" : "nav-item"} onClick={() => setPage("dashboard")}><span>▦</span> 容器图标</button><button className={page === "gallery" ? "nav-item active" : "nav-item"} onClick={() => setPage("gallery")}><span>▧</span> 图标图库</button><button className="nav-item" onClick={() => { setPage("dashboard"); window.setTimeout(() => document.getElementById("audit-history")?.scrollIntoView({ behavior: "smooth" }), 0); }}><span>≡</span> 变更记录</button><button className={page === "about" ? "nav-item active" : "nav-item"} onClick={() => setPage("about")}><span>♡</span> 关于项目</button></nav>
+      <div className="sidebar-footer"><span className={dockerAvailable === false ? "online-dot offline" : "online-dot"} /> {dockerAvailable === null ? "正在连接 Docker Manager" : dockerAvailable ? "Docker Manager 已连接" : "Docker Manager 未连接"}<br /><small>v{about.version} · 图标写入不会重启容器</small></div>
     </aside>
     <main className="workspace">
-      <header className="topbar"><div><p className="eyebrow">{page === "dashboard" ? "DOCKER MANAGEMENT" : "UNRAID ICON MANAGER"}</p><h1>{page === "dashboard" ? "容器图标总览" : "关于项目"}</h1></div>{page === "dashboard" && <div className="topbar-actions"><span className="summary"><b>{linkedCount}</b> 个已有模板</span><button className="secondary" onClick={() => void refresh()}>↻ 刷新列表</button></div>}</header>
+      <header className="topbar"><div><p className="eyebrow">{page === "dashboard" ? "DOCKER MANAGEMENT" : "UNRAID ICON MANAGER"}</p><h1>{page === "dashboard" ? "容器图标总览" : page === "gallery" ? "图标图库" : "关于项目"}</h1></div>{page === "dashboard" && <div className="topbar-actions"><span className="summary"><b>{linkedCount}</b> 个已有模板</span><button className="secondary" onClick={() => void refresh()}>↻ 刷新列表</button></div>}</header>
       {page === "dashboard" && <>
         <p className="notice" role="status">{notice}</p>
         <section className="stats-strip" aria-label="容器统计"><div><span>总容器</span><strong>{containers.length}</strong></div><div><span>运行中</span><strong className="success">{runningCount}</strong></div><div><span>已停止</span><strong className="muted">{stoppedCount}</strong></div><div><span>已有模板</span><strong className="accent">{linkedCount}</strong></div></section>
@@ -186,14 +205,14 @@ export function App() {
       <div className="preview"><h2>预览</h2><IconPreview value={icon} alt="图标预览" /><small>上传图标通过本工具的 HTTP 地址提供给 Unraid，避免本地路径无法下载。</small></div>
     </section>
     <section><div className="section-title"><div><h2>当前 Docker 容器</h2><span>点击任意容器直接换图标；复选框用于批量选择</span></div><span className="result-count">{filtered.length} 个结果</span></div><div className="container-grid">{filtered.map((container) => <article className={`${selected.has(container.id) ? "card selected" : "card"}`} key={container.id}><label className="card-select"><input aria-label={`批量选择 ${container.name}`} type="checkbox" checked={selected.has(container.id)} onChange={() => toggle(container)} /></label><button className="card-open" aria-label={`更换 ${container.name} 的图标`} onClick={() => openEditor(container)}><ContainerCardBody container={container} /></button></article>)}</div></section>
-    <section className="split" id="groups-and-audits"><div><h2>分组</h2><div className="inline"><input placeholder="例如：媒体服务" value={groupName} onChange={(e) => setGroupName(e.target.value)} /><button disabled={!groupName || !selected.size} onClick={() => void saveGroup()}>保存当前选择</button></div>{groups.map((group) => <div className="row" key={group.id}><button className="link" onClick={() => setSelected(new Set(containers.filter((container) => group.containerNames.includes(container.name)).map((container) => container.id)))}>{group.name} · {group.containerNames.length}</button><button className="danger" onClick={() => void request(`/api/groups/${group.id}`, { method: "DELETE" }).then(refresh)}>删除</button></div>)}</div>
-      <div><h2>最近变更</h2>{audits.slice(0, 6).map((audit) => <div className="row audit" key={audit.id}><span><strong>{audit.containerName}</strong><small>{new Date(audit.createdAt).toLocaleString()}</small></span>{audit.result === "applied" && <button onClick={() => void restore(audit.id)}>回滚</button>}</div>)}</div></section>
+    <section className="audit-history" id="audit-history"><div className="section-title"><div><h2>最近变更</h2><span>显示修改前与修改后的图标；回滚会恢复模板和两级缓存</span></div><span className="result-count">{audits.length} 条</span></div><div className="audit-list">{audits.length ? audits.slice(0, 20).map((audit) => <article className="audit-detail" key={audit.id}><header><div><strong>{audit.containerName}</strong><span className={audit.result === "applied" ? "audit-result applied" : "audit-result restored"}>{audit.result === "applied" ? "已应用" : "已回滚"}</span></div><time>{new Date(audit.createdAt).toLocaleString()}</time></header><div className="audit-change"><AuditIcon value={audit.oldIcon} label="之前" /><span className="audit-arrow">→</span><AuditIcon value={audit.newIcon} label="现在" /></div>{audit.result === "applied" && <button className="secondary" onClick={() => void restore(audit.id)}>回滚这次修改</button>}</article>) : <div className="empty-gallery">还没有图标变更记录。</div>}</div></section>
       </>}
+      {page === "gallery" && <section className="gallery-page"><div className="gallery-heading"><div><h2>已保存图标</h2><p>上传过的图片按内容去重并永久保存在 <code>/config/icons</code>，重启和升级后仍可使用。</p></div><label className="upload gallery-upload">上传新图标<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={upload} disabled={busy} /></label></div>{gallery.length ? <div className="gallery-grid">{gallery.map((asset) => <article className="gallery-item" key={asset.fileName}><img src={asset.previewUrl} alt="图库图标" /><div><span>{new Date(asset.createdAt).toLocaleString()}</span><small>{Math.max(1, Math.round(asset.bytes / 1024))} KB</small></div><button onClick={() => { setIcon(asset.icon); setPage("dashboard"); setNotice("已从图库选择图标，请选择容器后应用。"); }}>用于批量设置</button></article>)}</div> : <div className="empty-gallery">还没有图标。上传一次后，它会自动出现在这里。</div>}</section>}
       {page === "about" && <section className="about-page">
-        <div className="about-intro"><p className="eyebrow">OPEN SOURCE · SELF HOSTED</p><h2>最后的最后</h2><p>如果您觉得 Unraid Icon Manager 对您有帮助，可以请我喝一瓶快乐水。您的支持是我持续维护和更新项目的最大动力！</p><p className="about-muted">感谢每一位使用、反馈和分享这个项目的朋友。</p></div>
+        <div className="about-intro"><p className="eyebrow">OPEN SOURCE · SELF HOSTED</p><h2>最后的最后</h2><p>如果您觉得 Unraid Icon Manager 对您有帮助，可以请我喝一瓶快乐水。您的支持是我持续维护和更新项目的最大动力！</p><div className="project-meta"><span>当前版本 <b>v{about.version}</b></span><a href={about.githubUrl} target="_blank" rel="noreferrer">在 GitHub 查看项目 ↗</a></div><p className="about-muted">感谢每一位使用、反馈和分享这个项目的朋友。</p></div>
         <div className="donation-grid"><figure><div className="qr-frame"><img src="/donate/alipay.jpg" alt="支付宝赞赏二维码" /></div><figcaption><strong>支付宝</strong><span>扫码请我喝快乐水</span></figcaption></figure><figure><div className="qr-frame"><img src="/donate/wechat.jpg" alt="微信赞赏二维码" /></div><figcaption><strong>微信</strong><span>扫码支持持续维护</span></figcaption></figure></div>
       </section>}
-      {editing && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}><section className="icon-modal" role="dialog" aria-modal="true" aria-labelledby="icon-modal-title"><div className="modal-header"><div><p className="eyebrow">单容器图标</p><h2 id="icon-modal-title">{editing.name}</h2><small>{stateLabel(editing.state)} · {editing.image}</small></div><button className="modal-close secondary" aria-label="关闭更换图标弹窗" disabled={busy} onClick={closeEditor}>×</button></div><div className="modal-body"><div className="modal-preview"><IconPreview value={modalIcon} alt={`${editing.name} 图标预览`} /></div><div><label>图标 URL 或上传后的地址<input autoFocus value={modalIcon} placeholder="https://…" onChange={(event) => { setModalIcon(event.target.value); setModalError(""); }} /></label><label className="upload">上传 PNG / SVG / WebP<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={uploadForModal} disabled={busy} /></label><p className="modal-hint">{templateNote(editing)}。不会修改 Compose，也不会重启容器。</p>{modalError && <p className="modal-error" role="alert">{modalError}</p>}</div></div><div className="modal-actions"><button className="secondary" disabled={busy} onClick={closeEditor}>取消</button><button disabled={busy || !modalIcon.trim()} onClick={() => void applyOne()}>{busy ? "处理中…" : `仅应用到 ${editing.name}`}</button></div></section></div>}
+      {editing && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}><section className="icon-modal" role="dialog" aria-modal="true" aria-labelledby="icon-modal-title"><div className="modal-header"><div><p className="eyebrow">单容器图标</p><h2 id="icon-modal-title">{editing.name}</h2><small>{stateLabel(editing.state)} · {editing.image}</small></div><button className="modal-close secondary" aria-label="关闭更换图标弹窗" disabled={busy} onClick={closeEditor}>×</button></div><div className="modal-body"><div className="modal-preview"><IconPreview value={modalIcon} alt={`${editing.name} 图标预览`} /></div><div><label>图标 URL 或上传后的地址<input autoFocus value={modalIcon} placeholder="https://…" onChange={(event) => { setModalIcon(event.target.value); setModalError(""); }} /></label><div className="icon-source-actions"><label className="upload">上传 PNG / SVG / WebP<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={uploadForModal} disabled={busy} /></label><button className="secondary" type="button" onClick={() => setShowModalGallery((value) => !value)}>从图库中选择</button></div>{!editing.icon && editing.iconCandidates.length > 0 && <div className="discovered-icons"><strong>发现 {editing.iconCandidates.length} 个图标候选</strong>{editing.iconCandidates.map((candidate) => <button className="secondary" key={`${candidate.source}-${candidate.value}`} onClick={() => setModalIcon(candidate.value)}>{candidate.source === "container-label" ? "Compose / 容器标签" : candidate.source === "image-label" ? "本地镜像标签" : "同镜像 Unraid 模板"}：{candidate.labelKey}</button>)}</div>}<p className="modal-hint">{templateNote(editing)}。不会修改 Compose，也不会重启容器。</p>{modalError && <p className="modal-error" role="alert">{modalError}</p>}</div></div>{showModalGallery && <div className="modal-gallery">{gallery.length ? gallery.map((asset) => <button key={asset.fileName} className={modalIcon === asset.icon ? "chosen" : ""} onClick={() => { setModalIcon(asset.icon); setShowModalGallery(false); }}><img src={asset.previewUrl} alt="选择图库图标" /></button>) : <span>图库为空，请先上传一个图标。</span>}</div>}<div className="modal-actions"><button className="secondary" disabled={busy} onClick={closeEditor}>取消</button><button disabled={busy || !modalIcon.trim()} onClick={() => void applyOne()}>{busy ? "处理中…" : `仅应用到 ${editing.name}`}</button></div></section></div>}
     </main>
   </div>;
 }

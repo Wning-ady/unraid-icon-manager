@@ -1,6 +1,6 @@
 import { copyFile, mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { AppConfig, TemplateRecord } from "./types.js";
 
 const namePattern = /<Name(?:\s[^>]*)?>([\s\S]*?)<\/Name>/i;
@@ -108,7 +108,7 @@ export async function updateTemplateIcon(config: AppConfig, fileName: string, ic
   await mkdir(backupDirectory, { recursive: true });
   const backupFile = join(backupDirectory, fileName);
   await copyFile(template.filePath, backupFile);
-  const temporaryFile = join(config.templatesDir, `.${fileName}.${process.pid}.${Date.now()}.tmp`);
+  const temporaryFile = join(config.templatesDir, `.${fileName}.${process.pid}.${randomUUID()}.tmp`);
   await writeFile(temporaryFile, setTemplateIcon(xml, icon), "utf8");
   await rename(temporaryFile, template.filePath);
   return { oldIcon: template.icon, backupFile };
@@ -118,7 +118,7 @@ export async function restoreTemplate(config: AppConfig, fileName: string, backu
   const template = await getTemplate(config, fileName);
   if (!inside(config.backupsDir, backupFile)) throw new Error("Backup path escapes backup directory");
   const contents = await readFile(backupFile, "utf8");
-  const temporaryFile = join(config.templatesDir, `.${fileName}.${process.pid}.${Date.now()}.tmp`);
+  const temporaryFile = join(config.templatesDir, `.${fileName}.${process.pid}.${randomUUID()}.tmp`);
   await writeFile(temporaryFile, contents, "utf8");
   await rename(temporaryFile, template.filePath);
 }

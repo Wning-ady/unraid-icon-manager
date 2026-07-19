@@ -1,4 +1,4 @@
-import type { ManagedContainer, TemplateRecord } from "./types.js";
+import type { IconCandidate, ManagedContainer, TemplateRecord } from "./types.js";
 
 export interface DockerSummary {
   Id: string;
@@ -28,8 +28,45 @@ function findTemplate(templates: TemplateRecord[], name: string, image: string):
   return null;
 }
 
+const iconLabelKeys = new Set([
+  "net.unraid.docker.icon",
+  "com.docker.compose.icon",
+  "com.docker.compose.icon-url",
+  "org.opencontainers.image.icon",
+  "org.opencontainers.image.icon-url"
+]);
+
+function labelCandidates(labels: Record<string, string> | undefined, source: IconCandidate["source"]): IconCandidate[] {
+  if (!labels) return [];
+  return Object.entries(labels).flatMap(([labelKey, rawValue]) => {
+    if (!iconLabelKeys.has(labelKey.toLowerCase()) || rawValue.length > 2048) return [];
+    try {
+      const url = new URL(rawValue);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return [];
+      return [{ value: url.toString(), source, labelKey }];
+    } catch { return []; }
+  });
+}
+
+export function discoverIconCandidates(containerLabels?: Record<string, string>, imageLabels?: Record<string, string>): IconCandidate[] {
+  const seen = new Set<string>();
+  return [...labelCandidates(containerLabels, "container-label"), ...labelCandidates(imageLabels, "image-label")]
+    .filter((candidate) => !seen.has(candidate.value) && Boolean(seen.add(candidate.value)));
+}
+
+function repositoryTemplateCandidates(templates: TemplateRecord[], image: string): IconCandidate[] {
+  return templates.flatMap((template) => {
+    if (!template.icon || !template.repository || normalizedRepository(template.repository) !== normalizedRepository(image)) return [];
+    try {
+      const url = new URL(template.icon);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return [];
+      return [{ value: url.toString(), source: "unraid-template" as const, labelKey: template.fileName }];
+    } catch { return []; }
+  });
+}
+
 /** Associates current Docker containers with their editable Unraid Docker Manager templates. */
-export function associateManagedContainers(templates: TemplateRecord[], summaries: DockerSummary[]): ManagedContainer[] {
+export function associateManagedContainers(templates: TemplateRecord[], summaries: DockerSummary[], imageLabels = new Map<string, Record<string, string>>()): ManagedContainer[] {
   return summaries
     .map((summary) => {
       const name = containerName(summary);
@@ -48,7 +85,8 @@ export function associateManagedContainers(templates: TemplateRecord[], summarie
         id: summary.Id,
         image: summary.Image,
         state: summary.State,
-        status: summary.Status
+        status: summary.Status,
+        iconCandidates: associated?.template.icon ? [] : [...discoverIconCandidates(summary.Labels, imageLabels.get(summary.Image)), ...repositoryTemplateCandidates(templates, summary.Image)]
       };
     })
     .filter((container): container is NonNullable<typeof container> => container !== null)

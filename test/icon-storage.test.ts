@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import test from "node:test";
-import { storeUploadedIcon } from "../src/server/icon-service.ts";
+import { listStoredIcons, storeUploadedIcon } from "../src/server/icon-service.ts";
 import type { AppConfig } from "../src/server/types.ts";
 
 async function configForTest(): Promise<AppConfig> {
@@ -31,4 +31,15 @@ test("rejects empty, invalid, and oversized image uploads", async () => {
   await assert.rejects(storeUploadedIcon(config, Buffer.alloc(0)), /empty/);
   await assert.rejects(storeUploadedIcon(config, Buffer.from("not an image")), /valid PNG/);
   await assert.rejects(storeUploadedIcon({ ...config, maxUploadBytes: 3 }, Buffer.from("four")), /exceeds 3 bytes/);
+});
+
+test("lists normalized uploads as a persistent newest-first gallery", async () => {
+  const config = await configForTest();
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2" fill="blue"/></svg>');
+  const stored = await storeUploadedIcon(config, svg);
+  const gallery = await listStoredIcons(config, "http://unraid:8787");
+  assert.equal(gallery.length, 1);
+  assert.equal(gallery[0].fileName, stored.fileName);
+  assert.equal(gallery[0].icon, `http://unraid:8787/api/icons/file/${stored.fileName}`);
+  assert.ok(gallery[0].bytes > 0);
 });

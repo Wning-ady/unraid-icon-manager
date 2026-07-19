@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.7
+
+- Materialize app-uploaded PNG files directly into both Unraid Docker Manager caches so running, stopped, Compose, and collapsed Compose containers update consistently.
+- Back up the exact persistent and RAM cache bytes with every audit and restore them during rollback.
+- Keep arbitrary external icon URLs out of the manager's network boundary: Unraid fetches those URLs after targeted cache invalidation.
+- Open the configured Unraid Docker page directly from the post-change refresh button, preserving an exact cache rollback.
+- Add a persistent icon gallery, gallery selection in the single-container editor, and safe icon candidates from explicit Docker/Compose and local image labels.
+- Replace saved groups with detailed audit cards showing before/after icons, status, time, and rollback.
+- Show the live package version and public GitHub repository on the About page.
+
 ## 0.1.6
 
 - Make every currently deployed Docker container eligible for an icon change: existing templates are updated and missing templates receive an auditable, manager-generated template without changing Compose files or recreating containers.
