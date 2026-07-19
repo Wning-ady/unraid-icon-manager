@@ -12,6 +12,8 @@ services:
       - WALLPAPER_HOST_ROOT=${WALLPAPER_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/wallpapers}
       - ICON_CACHE_DIR=/unraid/icon-cache
       - ICON_CACHE_RAM_DIR=/unraid/icon-cache-ram
+      - COMPOSE_PROJECTS_DIR=/unraid/compose-projects
+      - COMPOSE_HOST_ROOT=${COMPOSE_HOST_ROOT:-/mnt/user/docker}
       - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES:-5242880}
       - MAX_WALLPAPER_BYTES=${MAX_WALLPAPER_BYTES:-31457280}
       # 必须能被 Unraid 主机访问，不能填写 localhost 或容器名。
@@ -27,7 +29,9 @@ services:
       # Unraid 持久图标缓存与内存图标缓存。
       - /var/lib/docker/unraid/images:/unraid/icon-cache
       - /usr/local/emhttp/state/plugins/dynamix.docker.manager/images:/unraid/icon-cache-ram
-      # 只读取当前 Docker 容器信息。
+      # Compose Manager 项目：只用于持久更新所选服务的图标标签。
+      - ${COMPOSE_HOST_ROOT:-/mnt/user/docker}:/unraid/compose-projects
+      # 读取容器信息；显式同步时会通过 Docker API 重建所选容器。
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
     security_opt:

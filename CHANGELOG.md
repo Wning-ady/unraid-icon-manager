@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.13
+
+- Make explicit Unraid synchronization update the immutable `net.unraid.docker.icon` label by recreating only selected containers while preserving binds, named volumes, ports, environment, restart policy, networks, and stopped/running state.
+- Persist Compose Manager icons by atomically updating only the selected service in `docker-compose.override.yml`; leave the main Compose file and unrelated services untouched and restore the prior override/container after failures.
+- Require the narrowly scoped Compose Manager projects mount and document the Docker mutation risk accurately.
+- Add per-wallpaper copy actions for the selected file's complete HTTP URL and complete Unraid host path.
+- Mark rollbacks as requiring another synchronization so runtime labels are restored as well as templates and caches.
+
 ## 0.1.12
 
 - Make Chinese the primary GitHub README and keep English as supplementary documentation.

@@ -9,17 +9,17 @@
 > [!NOTE]
 > This is a purely AI-built project. The maintainer does not know programming; he simply could not stand seeing containers without icons in Unraid and kept prompting until the problem was solved.
 
-Bulk-manage icons for **currently deployed** Unraid Docker containers from a small self-hosted web UI. It changes Docker Manager icon metadata only: it never stops, restarts, recreates, or otherwise changes an application container. The Chinese [README](README.md) is the primary and most detailed documentation.
+Bulk-manage icons for **currently deployed** Unraid Docker containers from a small self-hosted web UI. Saving changes templates, galleries, and caches only. The explicit **Sync to Unraid** action persists the immutable `net.unraid.docker.icon` label and recreates only the selected containers. The Chinese [README](README.md) is the primary and most detailed documentation.
 
 > [!WARNING]
-> Keep this service on a trusted LAN. It has narrowly scoped write access to Docker Manager templates and icon caches, plus access to the Docker socket for inventory. A Docker socket remains highly sensitive even when mounted `:ro`; do not expose this service, its port, or an unauthenticated reverse proxy to the public internet.
+> Keep this service on a trusted LAN. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. The sync action uses the Docker API to recreate selected containers. A Docker socket remains highly sensitive even when mounted `:ro`; do not expose this service, its port, or an unauthenticated reverse proxy to the public internet.
 
 ## Features
 
 - Lists the containers deployed through Docker now, rather than historical template files.
-- Shows the icon Unraid is currently rendering from its live/persistent cache or explicit `net.unraid.docker.icon` label, including Compose containers whose icon is not stored in a user template. Local label paths are displayed through the configured Unraid WebGUI origin without mounting Compose project directories.
+- Shows the icon Unraid is currently rendering from its live/persistent cache or explicit `net.unraid.docker.icon` label, including Compose containers whose icon is not stored in a user template.
 - Lets every current container receive an icon. Existing matching templates are updated; when none exists, it creates a clearly marked, auditable dedicated metadata template that matches the live container name and image without colliding with existing `my-*.xml` files.
-- Does not edit Compose files, call Docker mutation APIs, or recreate Compose, third-party, or Docker Manager containers.
+- Saving never recreates a container. Explicit sync atomically updates only the selected Compose Manager service in `docker-compose.override.yml`, then recreates only selected containers while preserving volumes and runtime configuration. It does not edit the main Compose file or touch unrelated services.
 - Searches, multi-selects, and opens a focused single-container icon editor by clicking any container card.
 - Downloads every used external icon URL before applying it, validates and normalizes the content to a stable PNG, and keeps it in the persistent icon gallery. A failed download leaves templates untouched.
 - Allows gallery selection, address/root copying, and deletion while protecting assets still referenced by templates or audit history.
@@ -30,7 +30,7 @@ Bulk-manage icons for **currently deployed** Unraid Docker containers from a sma
 - Offers a **Refresh Docker Page** action using `UNRAID_DOCKER_URL`.
 - Includes a Docker Copilot-inspired management layout and an About page with optional maintainer support QR codes.
 
-The tool reads live Docker names, images, and states through the socket, then looks for an Unraid template with the same container `<Name>` and image `<Repository>`. Stale templates are not listed. A generated template is metadata for Docker Manager icon rendering; it does not become the source of the running container's configuration and does not alter Compose.
+The tool reads live Docker names, images, and states through the socket, then looks for an Unraid template with the same container `<Name>` and image `<Repository>`. Stale templates are not listed. Because Docker labels cannot be edited in place, click sync after saving. Compose Manager labels are persisted in its override file; normal Docker Manager containers keep using their Unraid template for future updates.
 
 ## Install on Unraid
 
@@ -63,7 +63,7 @@ Open `http://YOUR_UNRAID_IP:8787` after starting. Alternatively, copy [`unraid/t
 
 ### Docker Compose example
 
-The included [`docker-compose.yml`](docker-compose.yml) has the same mounts. Copy the example environment file, replace both URL placeholders with your server's actual values, validate the rendered configuration, then start it:
+The included [`docker-compose.yml`](docker-compose.yml) has all six mounts, including the narrowly scoped Compose Manager `PROJECTS_FOLDER`. Copy the example environment file, replace both URL placeholders with your server's actual values, verify `COMPOSE_HOST_ROOT`, validate the rendered configuration, then start it:
 
 ```bash
 cp .env.example .env
@@ -88,7 +88,7 @@ Each update backs up its original XML under `/config/backups/` and appears in **
 
 - Keep the `/config` mount when upgrading; it contains the icon gallery, audits, and backups.
 - Pull a newer image and update only this tool's container from the Unraid Docker page. Your application containers are not rebuilt.
-- Roll back a single icon from **Recent changes**. To roll back the tool itself, select an earlier image tag while preserving `/config` and all five mounts.
+- Roll back a single icon from **Recent changes**, then sync it again to restore the runtime label. To roll back the tool itself, select an earlier image tag while preserving `/config` and all six mounts.
 
 ## Development
 
@@ -102,17 +102,17 @@ For Compose deployment variables, use [`.env.example`](.env.example); direct loc
 
 ## Publishing
 
-Push a tag such as `v0.1.12` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.13` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.12`
+- `waning/unraid-icon-manager:v0.1.13`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.
 
 ## Security
 
-See [SECURITY.md](SECURITY.md). Treat the Docker socket, template mount, and the two cache mounts as privileged host access. Do not add broad `/boot`, `/var/lib/docker`, or Compose-project write mounts; the supplied paths are the minimum required for this app's narrowly scoped behavior. Report vulnerabilities privately and never upload diagnostics containing private URLs, paths, mounts, or secrets.
+See [SECURITY.md](SECURITY.md). Treat the Docker socket, template mount, two cache mounts, and the configured Compose Manager projects mount as privileged host access. Never broaden them to all of `/boot`, `/var/lib/docker`, or `/mnt/user`; the supplied paths are the minimum required for this app's narrowly scoped behavior. Report vulnerabilities privately and never upload diagnostics containing private URLs, paths, mounts, or secrets.
 
 ## License
 

@@ -23,7 +23,14 @@ test("applies by deployed container id, invalidates caches, and rejects removed 
   const iconFile = `${"a".repeat(64)}.png`;
   await writeFile(join(config.iconsDir, iconFile), Buffer.from("png-test"));
   let deployed = true;
-  const app = createApp(config, { listManagedContainers: async () => ({ containers: deployed ? [activeContainer] : [], dockerAvailable: true }) });
+  const synced: string[] = [];
+  const app = createApp(config, {
+    listManagedContainers: async () => ({ containers: deployed ? [activeContainer] : [], dockerAvailable: true }),
+    synchronizeContainerIcon: async (_config, container) => {
+      synced.push(container.name);
+      return { containerName: container.name, containerId: "replacement-id", recreated: true, composeOverrideUpdated: false };
+    }
+  });
 
   try {
     const preview = await app.inject({ method: "GET", url: `/api/icons/file/${iconFile}` });
@@ -64,6 +71,8 @@ test("applies by deployed container id, invalidates caches, and rejects removed 
     const refreshed = await app.inject({ method: "POST", url: "/api/unraid/refresh", payload: { containerIds: ["active-id"] } });
     assert.equal(refreshed.statusCode, 200);
     assert.equal(refreshed.json().url, "http://unraid/Docker");
+    assert.deepEqual(synced, ["active"]);
+    assert.equal(refreshed.json().results[0].containerId, "replacement-id");
 
     deployed = false;
     const restore = await app.inject({ method: "POST", url: `/api/audits/${auditId}/restore`, payload: {} });
