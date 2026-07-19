@@ -7,8 +7,15 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
+      - ICON_CACHE_DIR=/unraid/icon-cache
+      - ICON_CACHE_RAM_DIR=/unraid/icon-cache-ram
+      # Set these in .env before starting. PUBLIC_BASE_URL must be reachable from Unraid itself.
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env to this host's mapped URL}
+      - UNRAID_DOCKER_URL=${UNRAID_DOCKER_URL:?Set UNRAID_DOCKER_URL in .env to the Unraid Docker page}
     volumes:
       - /mnt/user/appdata/unraid-icon-manager:/config
       - /boot/config/plugins/dockerMan/templates-user:/unraid/templates-user
+      - /var/lib/docker/unraid/images:/unraid/icon-cache
+      - /usr/local/emhttp/state/plugins/dynamix.docker.manager/images:/unraid/icon-cache-ram
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped

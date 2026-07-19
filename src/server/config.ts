@@ -7,6 +7,13 @@ function requiredDirectory(value: string, label: string): string {
   return value;
 }
 
+function optionalHttpUrl(value: string | undefined, label: string): string | undefined {
+  if (!value) return undefined;
+  const url = new URL(value);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error(`${label} must use HTTP or HTTPS`);
+  return value.replace(/\/$/, '');
+}
+
 export function loadConfig(env = process.env): AppConfig {
   const configDir = requiredDirectory(env.CONFIG_DIR ?? "/config", "CONFIG_DIR");
   const templatesDir = requiredDirectory(env.TEMPLATES_DIR ?? "/unraid/templates-user", "TEMPLATES_DIR");
@@ -22,7 +29,11 @@ export function loadConfig(env = process.env): AppConfig {
     iconsDir: join(configDir, "icons"),
     iconHostRoot,
     backupsDir: join(configDir, "backups"),
-    maxUploadBytes: Number(env.MAX_UPLOAD_BYTES ?? 5 * 1024 * 1024)
+    maxUploadBytes: Number(env.MAX_UPLOAD_BYTES ?? 5 * 1024 * 1024),
+    iconCacheDir: requiredDirectory(env.ICON_CACHE_DIR ?? "/unraid/icon-cache", "ICON_CACHE_DIR"),
+    iconCacheRamDir: requiredDirectory(env.ICON_CACHE_RAM_DIR ?? "/unraid/icon-cache-ram", "ICON_CACHE_RAM_DIR"),
+    publicBaseUrl: optionalHttpUrl(env.PUBLIC_BASE_URL, "PUBLIC_BASE_URL"),
+    unraidDockerUrl: optionalHttpUrl(env.UNRAID_DOCKER_URL, "UNRAID_DOCKER_URL") ?? "/Docker"
   };
   if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
     throw new Error("PORT must be between 1 and 65535");

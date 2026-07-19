@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { restoreTemplate, updateTemplateIcon } from "../src/server/template-service.ts";
+import { createGeneratedTemplate, getTemplate, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "../src/server/template-service.ts";
 import type { AppConfig } from "../src/server/types.ts";
 
 test("backs up, atomically changes, and restores a template", async () => {
@@ -23,6 +23,21 @@ test("backs up, atomically changes, and restores a template", async () => {
 
   await restoreTemplate(config, fileName, changed.backupFile);
   assert.equal(await readFile(join(templatesDir, fileName), "utf8"), original);
+});
+
+test("creates a no-clobber generated template and only removes its expected icon version", async () => {
+  const root = await mkdtemp(join(tmpdir(), "unraid-icon-manager-generated-template-"));
+  const templatesDir = join(root, "templates"); const configDir = join(root, "config");
+  await mkdir(templatesDir); await mkdir(configDir);
+  const config: AppConfig = { port: 8787, host: "127.0.0.1", configDir, templatesDir, iconsDir: join(configDir, "icons"), iconHostRoot: "/mnt/user/icons", backupsDir: join(configDir, "backups"), maxUploadBytes: 10 };
+  const created = await createGeneratedTemplate(config, "compose-app", "owner/image:latest", "https://example.com/icon.png");
+  const template = await getTemplate(config, created.fileName);
+  assert.equal(template.name, "compose-app");
+  assert.equal(template.generated, true);
+  await assert.rejects(createGeneratedTemplate(config, "compose-app", "owner/image:latest", "https://example.com/new.png"), /exist/i);
+  await assert.rejects(removeGeneratedTemplate(config, created.fileName, "https://example.com/wrong.png"), /changed/);
+  await removeGeneratedTemplate(config, created.fileName, "https://example.com/icon.png");
+  await assert.rejects(getTemplate(config, created.fileName));
 });
 
 test("rejects path escapes and preserves the original template when a write preparation fails", async () => {

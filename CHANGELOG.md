@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+
+- Make every currently deployed Docker container eligible for an icon change: existing templates are updated and missing templates receive an auditable, manager-generated template without changing Compose files or recreating containers.
+- Serve uploaded icons from the configured `PUBLIC_BASE_URL` over HTTP(S), which Unraid Docker Manager can fetch reliably.
+- Invalidate only the target container's persistent and RAM Docker Manager icon-cache files so the Docker page can display the new icon after refresh.
+- Add explicit Docker-page refresh configuration through `UNRAID_DOCKER_URL` and document the two narrowly scoped cache mounts and their security implications.
+- Refresh the dashboard with a Docker Copilot-inspired navigation shell and add an About page with the maintainer's Alipay and WeChat support QR codes.
+
 ## 0.1.5
 
 - Open a focused single-container icon editor when an editable container card is clicked, while keeping checkboxes dedicated to bulk selection.

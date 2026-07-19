@@ -9,6 +9,12 @@ export interface AppConfig {
   iconHostRoot: string;
   backupsDir: string;
   maxUploadBytes: number;
+  /** Host Docker Manager's persistent and RAM icon caches, mounted read/write. */
+  iconCacheDir?: string;
+  iconCacheRamDir?: string;
+  /** Public URL used by Unraid itself to download uploaded icons. */
+  publicBaseUrl?: string;
+  unraidDockerUrl?: string;
 }
 
 export interface TemplateRecord {
@@ -16,6 +22,8 @@ export interface TemplateRecord {
   fileName: string;
   filePath: string;
   icon: string | null;
+  repository: string | null;
+  generated?: boolean;
 }
 
 export interface ManagedContainer {
@@ -25,12 +33,12 @@ export interface ManagedContainer {
   image: string;
   state: string;
   status: string;
-  /** A matching template is required because it is the persisted source of an Unraid icon. */
   fileName: string | null;
   icon: string | null;
   editable: boolean;
   templateMatch: "name" | "file" | null;
-  uneditableReason: "no-template" | "compose" | null;
+  composeManaged: boolean;
+  templateState: "linked" | "will-create" | "generated";
 }
 
 export interface Group {
@@ -48,6 +56,7 @@ export interface AuditRecord {
   oldIcon: string | null;
   newIcon: string | null;
   backupFile: string;
+  templateCreated: boolean;
   createdAt: string;
   result: "applied" | "restored";
 }

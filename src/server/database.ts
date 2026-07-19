@@ -12,6 +12,10 @@ export class AppDatabase {
       CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, container_names TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS audits (id INTEGER PRIMARY KEY, container_name TEXT NOT NULL, template_file TEXT NOT NULL, old_icon TEXT, new_icon TEXT, backup_file TEXT NOT NULL, created_at TEXT NOT NULL, result TEXT NOT NULL CHECK(result IN ('applied', 'restored')));
     `);
+    const auditColumns = this.database.prepare("PRAGMA table_info(audits)").all() as Array<{ name: string }>;
+    if (!auditColumns.some((column) => column.name === "template_created")) {
+      this.database.exec("ALTER TABLE audits ADD COLUMN template_created INTEGER NOT NULL DEFAULT 0");
+    }
   }
 
   listGroups(): Group[] {
@@ -34,15 +38,15 @@ export class AppDatabase {
   deleteGroup(id: number): void { this.database.prepare("DELETE FROM groups WHERE id = ?").run(id); }
 
   addAudit(record: Omit<AuditRecord, "id">): AuditRecord {
-    const result = this.database.prepare(`INSERT INTO audits (container_name, template_file, old_icon, new_icon, backup_file, created_at, result) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .run(record.containerName, record.templateFile, record.oldIcon, record.newIcon, record.backupFile, record.createdAt, record.result);
+    const result = this.database.prepare(`INSERT INTO audits (container_name, template_file, old_icon, new_icon, backup_file, template_created, created_at, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(record.containerName, record.templateFile, record.oldIcon, record.newIcon, record.backupFile, record.templateCreated ? 1 : 0, record.createdAt, record.result);
     return { id: Number(result.lastInsertRowid), ...record };
   }
 
   listAudits(limit = 100): AuditRecord[] {
     return this.database.prepare("SELECT * FROM audits ORDER BY id DESC LIMIT ?").all(limit).map((row: any) => ({
       id: row.id, containerName: row.container_name, templateFile: row.template_file, oldIcon: row.old_icon,
-      newIcon: row.new_icon, backupFile: row.backup_file, createdAt: row.created_at, result: row.result
+      newIcon: row.new_icon, backupFile: row.backup_file, templateCreated: Boolean(row.template_created), createdAt: row.created_at, result: row.result
     }));
   }
 

@@ -16,20 +16,16 @@ function containerName(summary: DockerSummary): string | null {
   return name || null;
 }
 
-function findTemplate(templates: TemplateRecord[], name: string): { template: TemplateRecord; match: Exclude<TemplateMatch, null> } | null {
-  const exactName = templates.find((template) => template.name === name);
+function normalizedRepository(repository: string): string {
+  if (repository.includes("@")) return repository;
+  const lastSegment = repository.split("/").pop() ?? repository;
+  return lastSegment.includes(":") ? repository : `${repository}:latest`;
+}
+
+function findTemplate(templates: TemplateRecord[], name: string, image: string): { template: TemplateRecord; match: Exclude<TemplateMatch, null> } | null {
+  const exactName = templates.find((template) => template.name === name && template.repository && normalizedRepository(template.repository) === normalizedRepository(image));
   if (exactName) return { template: exactName, match: "name" };
-
-  const lowercaseName = name.toLocaleLowerCase();
-  const insensitiveName = templates.find((template) => template.name.toLocaleLowerCase() === lowercaseName);
-  if (insensitiveName) return { template: insensitiveName, match: "name" };
-
-  const expectedFileName = `my-${name}.xml`;
-  const exactFileName = templates.find((template) => template.fileName === expectedFileName);
-  if (exactFileName) return { template: exactFileName, match: "file" };
-
-  const insensitiveFileName = templates.find((template) => template.fileName.toLocaleLowerCase() === expectedFileName.toLocaleLowerCase());
-  return insensitiveFileName ? { template: insensitiveFileName, match: "file" } : null;
+  return null;
 }
 
 /** Associates current Docker containers with their editable Unraid Docker Manager templates. */
@@ -38,16 +34,17 @@ export function associateManagedContainers(templates: TemplateRecord[], summarie
     .map((summary) => {
       const name = containerName(summary);
       if (!name) return null;
-      const associated = findTemplate(templates, name);
+      const associated = findTemplate(templates, name, summary.Image);
       const composeManaged = Boolean(summary.Labels?.["com.docker.compose.project"] || summary.Labels?.["com.docker.compose.service"]);
-      const uneditableReason: ManagedContainer["uneditableReason"] = composeManaged ? "compose" : associated ? null : "no-template";
+      const templateState: ManagedContainer["templateState"] = associated ? (associated.template.generated ? "generated" : "linked") : "will-create";
       return {
         name,
-        fileName: composeManaged ? null : associated?.template.fileName ?? null,
+        fileName: associated?.template.fileName ?? null,
         icon: associated?.template.icon ?? null,
-        templateMatch: composeManaged ? null : associated?.match ?? null,
-        editable: Boolean(associated) && !composeManaged,
-        uneditableReason,
+        templateMatch: associated?.match ?? null,
+        editable: true,
+        composeManaged,
+        templateState,
         id: summary.Id,
         image: summary.Image,
         state: summary.State,
