@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.14
+
+- Correct Compose Manager container-card guidance so the UI accurately states that explicit synchronization updates the selected service override and recreates only that container.
+
 ## 0.1.13
 
 - Make explicit Unraid synchronization update the immutable `net.unraid.docker.icon` label by recreating only selected containers while preserving binds, named volumes, ports, environment, restart policy, networks, and stopped/running state.

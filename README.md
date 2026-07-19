@@ -125,7 +125,7 @@ services:
 在同一目录创建 `.env`。把两个 `YOUR_UNRAID_IP` 改成你的真实 Unraid IP；如果 WebUI 端口不是 `5000`，也要同步修改：
 
 ```dotenv
-# 镜像版本：latest 跟随最新版；也可以固定为 v0.1.13。
+# 镜像版本：latest 跟随最新版；也可以固定为 v0.1.14。
 IMAGE_TAG=latest
 
 # 本工具 Web 管理界面的主机端口。
@@ -172,7 +172,7 @@ curl http://你的_UNRAID_IP:8787/api/health
 | 字段 | 当前设置 | 含义与注意事项 |
 | --- | --- | --- |
 | `services.unraid-icon-manager` | 服务名 | Compose 内部服务标识；升级命令可以只操作它，避免影响同一项目里的其他服务。 |
-| `image` | `waning/unraid-icon-manager:${IMAGE_TAG:-latest}` | 要运行的镜像。`latest` 适合直接跟随最新版；希望升级可控时，把 `IMAGE_TAG` 固定为 `v0.1.13` 这类完整版本号。 |
+| `image` | `waning/unraid-icon-manager:${IMAGE_TAG:-latest}` | 要运行的镜像。`latest` 适合直接跟随最新版；希望升级可控时，把 `IMAGE_TAG` 固定为 `v0.1.14` 这类完整版本号。 |
 | `container_name` | `unraid-icon-manager` | 固定容器名，便于在 Unraid 和命令行中查找。若已有同名容器会冲突；本工具不应运行多个副本。 |
 | `ports` | `${WEBUI_PORT:-8787}:8787` | 左侧是 Unraid 主机端口，右侧是容器内固定端口。只改左侧即可换访问端口，同时必须修改 `PUBLIC_BASE_URL`。默认监听主机全部网络接口，所以只能在可信局域网使用。 |
 | `environment` | 见下表 | 把时区、上传限制、图标地址和 Unraid 页面地址传入容器。`${变量:-默认值}` 表示未填写时使用默认值；`${变量:?提示}` 表示缺失时拒绝启动。 |
@@ -184,7 +184,7 @@ curl http://你的_UNRAID_IP:8787/api/health
 
 | 参数 | 默认/示例 | 是否必填 | 作用 |
 | --- | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | 否 | Docker 镜像标签。建议稳定使用时固定为明确版本，例如 `v0.1.13`；需要升级时再改成新版本。 |
+| `IMAGE_TAG` | `latest` | 否 | Docker 镜像标签。建议稳定使用时固定为明确版本，例如 `v0.1.14`；需要升级时再改成新版本。 |
 | `WEBUI_PORT` | `8787` | 否 | Unraid 主机对外提供管理界面的端口。若改为 `9000`，访问地址和 `PUBLIC_BASE_URL` 也要使用 `9000`。容器内端口仍为 `8787`。 |
 | `TZ` | `Asia/Shanghai` | 否 | 容器时区，影响界面与日志中的本地时间显示。 |
 | `CONFIG_HOST_DIR` | `/mnt/user/appdata/unraid-icon-manager` | 否 | Unraid 主机上的持久化目录，保存 SQLite 数据库、图标/壁纸图库、审计和备份。升级时必须保留。 |
@@ -251,10 +251,10 @@ npm run check
 
 ## 发布
 
-推送例如 `v0.1.13` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
+推送例如 `v0.1.14` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.13`
+- `waning/unraid-icon-manager:v0.1.14`
 - `waning/unraid-icon-manager:v0.1`
 
 仓库维护者需要配置 `DOCKERHUB_USERNAME=waning` 与 `DOCKERHUB_TOKEN` 两个 GitHub Actions Secret。凭据不会保存在仓库中。
