@@ -1,0 +1,46 @@
+{
+  "name": "unraid-icon-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A self-hosted bulk icon manager for Unraid Docker Manager containers.",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "tsx watch src/server/server.ts",
+    "dev:client": "vite --host 0.0.0.0",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start": "node dist/server/server.js",
+    "typecheck": "tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.client.json",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "lint": "eslint .",
+    "check": "npm run lint && npm run typecheck && npm test"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@fastify/static": "^8.2.0",
+    "better-sqlite3": "^12.4.1",
+    "dockerode": "^4.0.7",
+    "fastify": "^5.6.2",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/dockerode": "^3.3.43",
+    "@types/node": "^24.6.1",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.4.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0",
+    "vite": "^7.1.7"
+  }
+}

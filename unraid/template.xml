@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>unraid-icon-manager</Name>
+  <Repository>waning/unraid-icon-manager:latest</Repository>
+  <Registry>https://hub.docker.com/r/waning/unraid-icon-manager</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/waning/unraid-icon-manager/issues</Support>
+  <Project>https://github.com/waning/unraid-icon-manager</Project>
+  <Overview>Bulk-manage Docker Manager container icons. This container modifies Unraid Docker templates, so keep it on a trusted LAN only.</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8787]</WebUI>
+  <Icon>https://raw.githubusercontent.com/waning/unraid-icon-manager/main/docs/icon.svg</Icon>
+  <ExtraParams>--security-opt=no-new-privileges</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>0</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="WebUI port" Target="8787" Default="8787" Mode="tcp" Description="Web UI port" Type="Port" Display="always" Required="true" Mask="false">8787</Config>
+  <Config Name="Application data" Target="/config" Default="/mnt/user/appdata/unraid-icon-manager" Mode="rw" Description="Database, uploaded icons, audits and backups" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager</Config>
+  <Config Name="Docker Manager templates" Target="/unraid/templates-user" Default="/boot/config/plugins/dockerMan/templates-user" Mode="rw" Description="Required to update icon template metadata" Type="Path" Display="always" Required="true" Mask="false">/boot/config/plugins/dockerMan/templates-user</Config>
+  <Config Name="Docker socket (read only)" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Reads current Docker container status" Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
+  <Config Name="Icon host path" Target="ICON_HOST_ROOT" Default="/mnt/user/appdata/unraid-icon-manager/icons" Mode="" Description="Host location that Unraid uses in the Icon field" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager/icons</Config>
+</Container>
