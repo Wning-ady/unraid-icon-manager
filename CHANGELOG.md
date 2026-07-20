@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.15
+
+- Add per-icon copy actions for the complete HTTP URL, Unraid host file path, and in-container file path while retaining the gallery-level root-directory actions.
+
 ## 0.1.14
 
 - Correct Compose Manager container-card guidance so the UI accurately states that explicit synchronization updates the selected service override and recreates only that container.

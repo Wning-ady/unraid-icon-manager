@@ -35,7 +35,7 @@
 - 保存阶段不重建容器；用户明确点击同步后，普通容器会仅重建所选容器，Compose Manager 容器还会原子更新对应项目 `docker-compose.override.yml` 中所选服务的图标标签，再仅重建该服务。其他服务、数据卷和 Compose 主文件不受影响；失败时自动恢复原容器与 override。
 - 支持搜索、多选，并可直接点击任意容器卡片打开单容器图标编辑器。
 - 每次上传或实际使用外部图标 URL 时，都会先下载、校验、规范化为稳定 PNG，按内容去重后持久保存到图标图库；下载失败时不会修改模板。
-- 图标图库支持复制宿主机/容器根目录、复制单个资源的完整 HTTP 地址和删除；仍被模板或变更历史引用的图标会被保护，避免破坏当前显示或回滚。
+- 图标图库支持复制宿主机/容器根目录；每张图标还可复制自身完整 HTTP 地址、完整宿主机文件路径和完整容器文件路径。仍被模板或变更历史引用的图标会被保护，避免破坏当前显示或回滚。
 - 可从明确的 Docker Compose/容器标签及本地镜像元数据发现图标候选；选择候选后同样会先安全下载入库，不读取 Compose 文件或拉取镜像。
 - 新增独立壁纸图库：支持 PNG/JPEG/WebP 上传、公网 URL 下载、下载到本地、删除、新建手动分组与移动分类。每张壁纸可复制自身完整 HTTP 地址或完整宿主机文件路径，例如 `http://UNRAID:8787/api/wallpapers/file/example.png` 和 `/mnt/user/appdata/unraid-icon-manager/wallpapers/example.png`。壁纸原始分辨率与字节会保留在 `/config/wallpapers`。
 - 每次修改都会创建带时间戳的模板备份与审计记录；可单项回滚。回滚只会删除本工具创建且仍匹配的生成模板。
@@ -125,7 +125,7 @@ services:
 在同一目录创建 `.env`。把两个 `YOUR_UNRAID_IP` 改成你的真实 Unraid IP；如果 WebUI 端口不是 `5000`，也要同步修改：
 
 ```dotenv
-# 镜像版本：latest 跟随最新版；也可以固定为 v0.1.14。
+# 镜像版本：latest 跟随最新版；也可以固定为 v0.1.15。
 IMAGE_TAG=latest
 
 # 本工具 Web 管理界面的主机端口。
@@ -172,7 +172,7 @@ curl http://你的_UNRAID_IP:8787/api/health
 | 字段 | 当前设置 | 含义与注意事项 |
 | --- | --- | --- |
 | `services.unraid-icon-manager` | 服务名 | Compose 内部服务标识；升级命令可以只操作它，避免影响同一项目里的其他服务。 |
-| `image` | `waning/unraid-icon-manager:${IMAGE_TAG:-latest}` | 要运行的镜像。`latest` 适合直接跟随最新版；希望升级可控时，把 `IMAGE_TAG` 固定为 `v0.1.14` 这类完整版本号。 |
+| `image` | `waning/unraid-icon-manager:${IMAGE_TAG:-latest}` | 要运行的镜像。`latest` 适合直接跟随最新版；希望升级可控时，把 `IMAGE_TAG` 固定为 `v0.1.15` 这类完整版本号。 |
 | `container_name` | `unraid-icon-manager` | 固定容器名，便于在 Unraid 和命令行中查找。若已有同名容器会冲突；本工具不应运行多个副本。 |
 | `ports` | `${WEBUI_PORT:-8787}:8787` | 左侧是 Unraid 主机端口，右侧是容器内固定端口。只改左侧即可换访问端口，同时必须修改 `PUBLIC_BASE_URL`。默认监听主机全部网络接口，所以只能在可信局域网使用。 |
 | `environment` | 见下表 | 把时区、上传限制、图标地址和 Unraid 页面地址传入容器。`${变量:-默认值}` 表示未填写时使用默认值；`${变量:?提示}` 表示缺失时拒绝启动。 |
@@ -184,7 +184,7 @@ curl http://你的_UNRAID_IP:8787/api/health
 
 | 参数 | 默认/示例 | 是否必填 | 作用 |
 | --- | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | 否 | Docker 镜像标签。建议稳定使用时固定为明确版本，例如 `v0.1.14`；需要升级时再改成新版本。 |
+| `IMAGE_TAG` | `latest` | 否 | Docker 镜像标签。建议稳定使用时固定为明确版本，例如 `v0.1.15`；需要升级时再改成新版本。 |
 | `WEBUI_PORT` | `8787` | 否 | Unraid 主机对外提供管理界面的端口。若改为 `9000`，访问地址和 `PUBLIC_BASE_URL` 也要使用 `9000`。容器内端口仍为 `8787`。 |
 | `TZ` | `Asia/Shanghai` | 否 | 容器时区，影响界面与日志中的本地时间显示。 |
 | `CONFIG_HOST_DIR` | `/mnt/user/appdata/unraid-icon-manager` | 否 | Unraid 主机上的持久化目录，保存 SQLite 数据库、图标/壁纸图库、审计和备份。升级时必须保留。 |
@@ -251,10 +251,10 @@ npm run check
 
 ## 发布
 
-推送例如 `v0.1.14` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
+推送例如 `v0.1.15` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.14`
+- `waning/unraid-icon-manager:v0.1.15`
 - `waning/unraid-icon-manager:v0.1`
 
 仓库维护者需要配置 `DOCKERHUB_USERNAME=waning` 与 `DOCKERHUB_TOKEN` 两个 GitHub Actions Secret。凭据不会保存在仓库中。
