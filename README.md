@@ -69,7 +69,7 @@ docker pull waning/unraid-icon-manager:latest
 | 变量 | 示例 | 用途 |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `http://192.168.1.10:8787` | Unraid 主机通过该 HTTP(S) URL 下载上传的 PNG 图标；必须使用映射后的主机端口，并能被 Unraid 主机访问。 |
-| `UNRAID_DOCKER_URL` | `http://192.168.1.10/Docker` | 点击**刷新 Docker 页面**时打开的地址；如果 WebGUI 使用自定义端口，请一并填写。 |
+| `UNRAID_DOCKER_URL` | `http://192.168.1.10:5000/Docker` | 点击**刷新 Docker 页面**时打开的地址；如果 WebGUI 使用其他端口，请一并修改。 |
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | 对应 `/config/icons` 的主机路径；移动 appdata 时一同修改。 |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager 的 `PROJECTS_FOLDER`；用于写回所选服务的 override。 |
 
@@ -77,42 +77,42 @@ docker pull waning/unraid-icon-manager:latest
 
 ### 完整 Docker Compose 部署
 
-下面是可以直接复制使用的**完整配置**，与仓库中的 [`docker-compose.yml`](docker-compose.yml) 保持一致。先创建一个目录，将 YAML 保存为 `docker-compose.yml`：
+下面是可以直接复制使用的**完整配置**，与仓库中的 [`docker-compose.yml`](docker-compose.yml) 保持一致。它完全不依赖 `.env`。保存为 `docker-compose.yml` 后，只需把两处 `192.168.1.10` 改成你的 Unraid IP：
 
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:${IMAGE_TAG:-latest}
+    image: waning/unraid-icon-manager:latest
     container_name: unraid-icon-manager
 
     ports:
-      - "${WEBUI_PORT:-8787}:8787"
+      - "8787:8787"
 
     environment:
-      - TZ=${TZ:-Asia/Shanghai}
-      - ICON_HOST_ROOT=${ICON_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/icons}
-      - WALLPAPER_HOST_ROOT=${WALLPAPER_HOST_ROOT:-/mnt/user/appdata/unraid-icon-manager/wallpapers}
+      - TZ=Asia/Shanghai
+      - ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
+      - WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
       - ICON_CACHE_DIR=/unraid/icon-cache
       - ICON_CACHE_RAM_DIR=/unraid/icon-cache-ram
       - COMPOSE_PROJECTS_DIR=/unraid/compose-projects
-      - COMPOSE_HOST_ROOT=${COMPOSE_HOST_ROOT:-/mnt/user/docker}
-      - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES:-5242880}
-      - MAX_WALLPAPER_BYTES=${MAX_WALLPAPER_BYTES:-31457280}
-      # 必须能被 Unraid 主机访问，不能填写 localhost 或容器名。
-      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env to this host's mapped URL}
-      # 填写 Unraid WebGUI 的 Docker 页面地址，自定义端口也要写入。
-      - UNRAID_DOCKER_URL=${UNRAID_DOCKER_URL:?Set UNRAID_DOCKER_URL in .env to the Unraid Docker page}
+      - COMPOSE_HOST_ROOT=/mnt/user/docker
+      - MAX_UPLOAD_BYTES=5242880
+      - MAX_WALLPAPER_BYTES=31457280
+      # 部署前把 192.168.1.10 改成你的 Unraid IP；不能填写 localhost。
+      - PUBLIC_BASE_URL=http://192.168.1.10:8787
+      # 如果 Unraid WebGUI 不是 5000 端口，请直接修改这里。
+      - UNRAID_DOCKER_URL=http://192.168.1.10:5000/Docker
 
     volumes:
       # 数据库、图库、审计记录和备份。
-      - ${CONFIG_HOST_DIR:-/mnt/user/appdata/unraid-icon-manager}:/config
+      - /mnt/user/appdata/unraid-icon-manager:/config
       # Unraid Docker Manager 用户模板。
       - /boot/config/plugins/dockerMan/templates-user:/unraid/templates-user
       # Unraid 持久图标缓存与内存图标缓存。
       - /var/lib/docker/unraid/images:/unraid/icon-cache
       - /usr/local/emhttp/state/plugins/dynamix.docker.manager/images:/unraid/icon-cache-ram
       # Compose Manager 项目：只用于持久更新所选服务的图标标签。
-      - ${COMPOSE_HOST_ROOT:-/mnt/user/docker}:/unraid/compose-projects
+      - /mnt/user/docker:/unraid/compose-projects
       # 读取容器信息；显式同步时会通过 Docker API 重建所选容器。
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
@@ -122,36 +122,7 @@ services:
     restart: unless-stopped
 ```
 
-在同一目录创建 `.env`。把两个 `YOUR_UNRAID_IP` 改成你的真实 Unraid IP；如果 WebUI 端口不是 `5000`，也要同步修改：
-
-```dotenv
-# 镜像版本：latest 跟随最新版；也可以固定为 v0.1.15。
-IMAGE_TAG=latest
-
-# 本工具 Web 管理界面的主机端口。
-WEBUI_PORT=8787
-TZ=Asia/Shanghai
-
-# 持久化根目录及其图库子目录。
-CONFIG_HOST_DIR=/mnt/user/appdata/unraid-icon-manager
-ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
-WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
-
-# Compose Manager 的 PROJECTS_FOLDER；默认通常是 /mnt/user/docker。
-COMPOSE_HOST_ROOT=/mnt/user/docker
-
-# 单个图标 5 MiB，单张壁纸 30 MiB，单位都是字节。
-MAX_UPLOAD_BYTES=5242880
-MAX_WALLPAPER_BYTES=31457280
-
-# 必须能被 Unraid 主机自身访问，端口必须与 WEBUI_PORT 一致。
-PUBLIC_BASE_URL=http://YOUR_UNRAID_IP:8787
-
-# 点击“刷新 Docker 页面”时打开的实际 Unraid WebGUI 地址。
-UNRAID_DOCKER_URL=http://YOUR_UNRAID_IP:5000/Docker
-```
-
-确认 IP 和端口后，先检查展开结果，再启动：
+所有参数都直接写在 Compose 中，不需要创建其他文件。确认 IP、端口和路径后，先检查配置，再启动：
 
 ```bash
 docker compose config
@@ -172,31 +143,26 @@ curl http://你的_UNRAID_IP:8787/api/health
 | 字段 | 当前设置 | 含义与注意事项 |
 | --- | --- | --- |
 | `services.unraid-icon-manager` | 服务名 | Compose 内部服务标识；升级命令可以只操作它，避免影响同一项目里的其他服务。 |
-| `image` | `waning/unraid-icon-manager:${IMAGE_TAG:-latest}` | 要运行的镜像。`latest` 适合直接跟随最新版；希望升级可控时，把 `IMAGE_TAG` 固定为 `v0.1.15` 这类完整版本号。 |
+| `image` | `waning/unraid-icon-manager:latest` | 要运行的镜像。`latest` 跟随最新版；希望升级可控时，直接改为 `waning/unraid-icon-manager:v0.1.16`。 |
 | `container_name` | `unraid-icon-manager` | 固定容器名，便于在 Unraid 和命令行中查找。若已有同名容器会冲突；本工具不应运行多个副本。 |
-| `ports` | `${WEBUI_PORT:-8787}:8787` | 左侧是 Unraid 主机端口，右侧是容器内固定端口。只改左侧即可换访问端口，同时必须修改 `PUBLIC_BASE_URL`。默认监听主机全部网络接口，所以只能在可信局域网使用。 |
-| `environment` | 见下表 | 把时区、上传限制、图标地址和 Unraid 页面地址传入容器。`${变量:-默认值}` 表示未填写时使用默认值；`${变量:?提示}` 表示缺失时拒绝启动。 |
+| `ports` | `8787:8787` | 左侧是 Unraid 主机端口，右侧是容器内固定端口。只改左侧即可换访问端口，同时必须修改 `PUBLIC_BASE_URL`。默认监听主机全部网络接口，所以只能在可信局域网使用。 |
+| `environment` | 见下表 | 时区、上传限制、图标地址和 Unraid 页面地址全部直接写在 YAML 中；修改后重新创建本工具容器即可生效。 |
 | `volumes` | 六项挂载 | 让数据库、模板、两级图标缓存和 Compose Manager 图标标签持久化，并通过 Docker socket 同步所选容器。每一项的具体权限见下表。 |
 | `security_opt` | `no-new-privileges:true` | 禁止容器进程通过 setuid/setgid 等方式获得额外权限；这是额外保护，但不能消除 Docker socket 本身的高权限风险。 |
 | `restart` | `unless-stopped` | Unraid 或 Docker 重启后自动恢复；如果你手动停止容器，它不会自己再次启动。 |
 
-#### `.env` 参数逐项说明
+#### Compose 环境参数逐项说明
 
 | 参数 | 默认/示例 | 是否必填 | 作用 |
 | --- | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | 否 | Docker 镜像标签。建议稳定使用时固定为明确版本，例如 `v0.1.15`；需要升级时再改成新版本。 |
-| `WEBUI_PORT` | `8787` | 否 | Unraid 主机对外提供管理界面的端口。若改为 `9000`，访问地址和 `PUBLIC_BASE_URL` 也要使用 `9000`。容器内端口仍为 `8787`。 |
 | `TZ` | `Asia/Shanghai` | 否 | 容器时区，影响界面与日志中的本地时间显示。 |
-| `CONFIG_HOST_DIR` | `/mnt/user/appdata/unraid-icon-manager` | 否 | Unraid 主机上的持久化目录，保存 SQLite 数据库、图标/壁纸图库、审计和备份。升级时必须保留。 |
-| `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | 是¹ | `/config/icons` 在 Unraid 主机上的对应路径。修改 `CONFIG_HOST_DIR` 时，必须同步改成新目录下的 `icons`。 |
-| `WALLPAPER_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/wallpapers` | 是¹ | `/config/wallpapers` 在 Unraid 主机上的对应路径，用于界面复制正确的宿主机根目录。 |
+| `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | 是 | `/config/icons` 在 Unraid 主机上的对应路径。修改 `/config` 的主机挂载时，必须同步修改。 |
+| `WALLPAPER_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/wallpapers` | 是 | `/config/wallpapers` 在 Unraid 主机上的对应路径，用于复制正确的宿主机路径。 |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager 用户是 | Compose Manager 插件设置中的 `PROJECTS_FOLDER`。不是该目录时必须修改，否则 Compose 图标不能持久化。 |
 | `MAX_UPLOAD_BYTES` | `5242880` | 否 | 单个上传文件的最大字节数，默认 `5 MiB`。过大的 PNG、SVG 或 WebP 会被拒绝。 |
 | `MAX_WALLPAPER_BYTES` | `31457280` | 否 | 单张上传或 URL 下载壁纸的最大字节数，默认 `30 MiB`。 |
-| `PUBLIC_BASE_URL` | `http://192.168.1.10:8787` | **是** | 写入 Unraid 模板的图标服务根地址，必须从 Unraid 主机自身可访问。不能填容器内部地址或 `localhost`；端口必须与 `WEBUI_PORT` 一致。 |
+| `PUBLIC_BASE_URL` | `http://192.168.1.10:8787` | **是** | 写入 Unraid 模板的图标服务根地址，必须从 Unraid 主机自身可访问。不能填容器内部地址或 `localhost`；端口必须与 `ports` 左侧的主机端口一致。 |
 | `UNRAID_DOCKER_URL` | `http://192.168.1.10:5000/Docker` | **是** | 点击**刷新 Docker 页面**时打开的地址。若 Unraid WebGUI 使用自定义端口，必须把端口写完整。 |
-
-¹ 示例文件已提供默认值，但它必须和 `CONFIG_HOST_DIR` 的实际位置保持一致。
 
 Compose 内还有三个固定的容器内环境变量：`ICON_CACHE_DIR=/unraid/icon-cache`、`ICON_CACHE_RAM_DIR=/unraid/icon-cache-ram` 和 `COMPOSE_PROJECTS_DIR=/unraid/compose-projects`。它们必须与对应挂载的**容器路径**一致，一般不要修改。
 
@@ -204,15 +170,15 @@ Compose 内还有三个固定的容器内环境变量：`ICON_CACHE_DIR=/unraid/
 
 | 主机路径 → 容器路径 | 权限 | 是否必需 | 具体作用 |
 | --- | --- | --- | --- |
-| `${CONFIG_HOST_DIR}` → `/config` | 读写 | 是 | 保存数据库及其 WAL 文件、图标/壁纸图库、XML/缓存备份和审计记录；不挂载会导致重建容器后数据丢失。 |
+| `/mnt/user/appdata/unraid-icon-manager` → `/config` | 读写 | 是 | 保存数据库及其 WAL 文件、图标/壁纸图库、XML/缓存备份和审计记录；不挂载会导致重建容器后数据丢失。 |
 | `/boot/config/plugins/dockerMan/templates-user` → `/unraid/templates-user` | 读写 | 是 | 原子更新已有 Unraid Docker 模板的 `<Icon>`，或为没有模板的当前容器创建专用图标元数据模板。 |
 | `/var/lib/docker/unraid/images` → `/unraid/icon-cache` | 读写 | 是 | 备份和更新 Unraid Docker Manager 的持久图标缓存，只处理被修改的目标容器。 |
 | `/usr/local/emhttp/state/plugins/dynamix.docker.manager/images` → `/unraid/icon-cache-ram` | 读写 | 是 | 备份和更新运行时 RAM 图标缓存，让刷新 Docker 页面后立即看到新图标。 |
-| `${COMPOSE_HOST_ROOT}` → `/unraid/compose-projects` | 读写 | Compose Manager 用户是 | 原子备份并更新所选项目 `docker-compose.override.yml` 中所选服务的图标标签；不改主 Compose 文件。 |
+| `/mnt/user/docker` → `/unraid/compose-projects` | 读写 | Compose Manager 用户是 | 原子备份并更新所选项目 `docker-compose.override.yml` 中所选服务的图标标签；如果插件的 `PROJECTS_FOLDER` 不同，需要同时修改挂载和 `COMPOSE_HOST_ROOT`。 |
 | `/var/run/docker.sock` → `/var/run/docker.sock` | **只读挂载** | 是 | 读取容器信息；只有用户点击同步时才停止、删除并以相同配置重建所选容器。Docker socket 即使标为 `:ro` 仍允许高权限 API 操作。 |
 
 > [!CAUTION]
-> `PUBLIC_BASE_URL` 会被 Compose 强制检查。除非 Unraid 主机确实能访问，否则不要填写 `http://localhost:8787`、容器名或仅容器网络可见的地址。也不要把 Docker socket、模板和缓存写权限暴露给公网服务。
+> 部署前必须直接修改 `PUBLIC_BASE_URL` 和 `UNRAID_DOCKER_URL` 中的示例 IP。不要填写 `localhost`、容器名或仅容器网络可见的地址，也不要把 Docker socket、模板和缓存写权限暴露给公网服务。
 
 ## 使用与恢复
 
@@ -227,8 +193,8 @@ Compose 内还有三个固定的容器内环境变量：`ICON_CACHE_DIR=/unraid/
 
 ## 升级与回滚
 
-- 升级前备份 `CONFIG_HOST_DIR`；其中包含 SQLite 数据库、图标图库、审计记录与备份。
-- Compose 安装建议先把 `IMAGE_TAG` 改为目标完整版本，然后只更新本工具：
+- 升级前备份 `/mnt/user/appdata/unraid-icon-manager`；其中包含 SQLite 数据库、图标图库、审计记录与备份。
+- Compose 安装如需固定版本，直接把 `image` 改为目标完整标签（例如 `waning/unraid-icon-manager:v0.1.16`），然后只更新本工具：
 
 ```bash
 docker compose pull unraid-icon-manager
@@ -247,14 +213,14 @@ npm run dev
 npm run check
 ```
 
-本地开发变量以 [`src/server/config.ts`](src/server/config.ts) 的默认值为准；Compose 部署变量请参考 [`.env.example`](.env.example)。生产镜像支持 `linux/amd64` 与 `linux/arm64`。
+本地开发变量以 [`src/server/config.ts`](src/server/config.ts) 的默认值为准；Compose 部署参数全部直接写在 [`docker-compose.yml`](docker-compose.yml) 中。生产镜像支持 `linux/amd64` 与 `linux/arm64`。
 
 ## 发布
 
-推送例如 `v0.1.15` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
+推送例如 `v0.1.16` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.15`
+- `waning/unraid-icon-manager:v0.1.16`
 - `waning/unraid-icon-manager:v0.1`
 
 仓库维护者需要配置 `DOCKERHUB_USERNAME=waning` 与 `DOCKERHUB_TOKEN` 两个 GitHub Actions Secret。凭据不会保存在仓库中。

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.16
+
+- Make `docker-compose.yml` fully self-contained: remove all `.env` interpolation, place image, port, paths, limits and URLs directly in YAML, and remove `.env.example`.
+- Rewrite the Chinese and English Compose instructions so users edit the two Unraid IP values directly before starting.
+
 ## 0.1.15
 
 - Add per-icon copy actions for the complete HTTP URL, Unraid host file path, and in-container file path while retaining the gallery-level root-directory actions.
