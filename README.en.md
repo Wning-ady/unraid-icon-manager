@@ -48,39 +48,40 @@ Create the container through the Unraid Docker tab with these mappings:
 | `/boot/config/plugins/dockerMan/templates-user` | `/unraid/templates-user` | Read/write | Existing and app-generated Docker Manager icon metadata |
 | `/var/lib/docker/unraid/images` | `/unraid/icon-cache` | Read/write | Back up and update only changed persistent Docker Manager icon files |
 | `/usr/local/emhttp/state/plugins/dynamix.docker.manager/images` | `/unraid/icon-cache-ram` | Read/write | Back up and update only changed RAM icon files |
-| `/var/run/docker.sock` | `/var/run/docker.sock` | Read-only | Current container names, images, and status |
+| `/mnt/user/docker` | `/unraid/compose-projects` | Read/write | Atomically update the selected Compose Manager service's icon label in `docker-compose.override.yml` |
+| `/var/run/docker.sock` | `/var/run/docker.sock` | Read-only mount | Read current container details and recreate only explicitly synchronized containers through the Docker API |
 
 Map TCP port `8787` to a free host port. Then set these required advanced variables with the **actual host-side URLs**:
 
 | Variable | Example | Why it matters |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `http://192.168.1.10:8787` | Unraid itself downloads uploaded icon PNGs from this HTTP(S) URL. It must use the mapped host port and be reachable from the Unraid host. |
-| `UNRAID_DOCKER_URL` | `http://192.168.1.10/Docker` | The URL opened by **Refresh Docker Page**. Include a custom WebGUI port when applicable. |
+| `UNRAID_DOCKER_URL` | `http://192.168.1.10:5000/Docker` | The URL opened by **Refresh Docker Page**. Change the port when the WebGUI uses a different one. |
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | The host path corresponding to `/config/icons`; retain it when moving appdata. |
 | `WALLPAPER_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/wallpapers` | The host path corresponding to `/config/wallpapers`. |
+| `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager's `PROJECTS_FOLDER`; it must match the host side of the `/unraid/compose-projects` mount. |
 
 Open `http://YOUR_UNRAID_IP:8787` after starting. Alternatively, copy [`unraid/template.xml`](unraid/template.xml) to `/boot/config/plugins/dockerMan/templates-user/`, select **unraid-icon-manager** from **Add Container**, and fill the two URL variables before applying it.
 
 ### Docker Compose example
 
-The included [`docker-compose.yml`](docker-compose.yml) has all six mounts, including the narrowly scoped Compose Manager `PROJECTS_FOLDER`. Copy the example environment file, replace both URL placeholders with your server's actual values, verify `COMPOSE_HOST_ROOT`, validate the rendered configuration, then start it:
+The included [`docker-compose.yml`](docker-compose.yml) is completely self-contained and has all six mounts, including the narrowly scoped Compose Manager `PROJECTS_FOLDER`. It does not use `.env`. Edit both `192.168.1.10` values directly in the YAML, verify the paths and port, then start it:
 
 ```bash
-cp .env.example .env
 docker compose config
 docker compose up -d
 ```
 
-`PUBLIC_BASE_URL` is intentionally required in the Compose file. Do not use a container-only address such as `http://localhost:8787` unless the Unraid host can actually reach that address and port. If `/config` moves, update both the bind mount and `ICON_HOST_ROOT`.
+Do not use a container-only address such as `http://localhost:8787` for `PUBLIC_BASE_URL`. If `/config` moves, update both the bind mount and `ICON_HOST_ROOT` directly in the Compose file. If Compose Manager uses a different `PROJECTS_FOLDER`, update both its bind mount and `COMPOSE_HOST_ROOT`.
 
-The primary Chinese [README](README.md#docker-compose-示例) documents every Compose service field, `.env` variable, port, mount, permission, security option, and upgrade command in detail.
+The primary Chinese [README](README.md#完整-docker-compose-部署) documents every Compose service field, environment value, port, mount, permission, security option, and upgrade command in detail.
 
 ## Use and recovery
 
 1. Select one or more current containers, or click an individual editable container.
 2. Paste an HTTP(S) icon URL, choose a gallery asset, or upload an image.
 3. Apply the icon. External URLs are downloaded into the gallery first; if the container has no matching template, the app then creates a marked metadata template.
-4. Use **Refresh Docker Page** after saving. The normalized PNG is already materialized in both caches. No application container is restarted.
+4. After saving, use **Sync Icon and Open Unraid**. The app updates both caches and recreates only the selected container so its immutable icon label takes effect. For a Compose Manager service, it first writes the selected service's override; other services and volumes are left untouched.
 
 Each update backs up its original XML under `/config/backups/` and appears in **Recent changes** as a compact historical before/after snapshot. Expand an entry to inspect complete icon addresses. **Rollback** is offered only for the latest change that still matches the current template; it restores the template and both prior Unraid cache copies. When the audit created a template, rollback removes that generated template only if it is still unchanged. Refresh the Docker page afterwards.
 
@@ -98,14 +99,14 @@ npm run dev
 npm run check
 ```
 
-For Compose deployment variables, use [`.env.example`](.env.example); direct local-development defaults live in [`src/server/config.ts`](src/server/config.ts). The production image targets `linux/amd64` and `linux/arm64`.
+Compose deployment values are written directly in [`docker-compose.yml`](docker-compose.yml); local-development defaults live in [`src/server/config.ts`](src/server/config.ts). The production image targets `linux/amd64` and `linux/arm64`.
 
 ## Publishing
 
-Push a tag such as `v0.1.15` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.16` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.15`
+- `waning/unraid-icon-manager:v0.1.16`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.
