@@ -6,6 +6,8 @@ import { promisify } from "node:util";
 import type { AppConfig, ManagedVirtualMachine } from "./types.js";
 
 const execFileAsync = promisify(execFile);
+export const UNRAID_VM_METADATA_URI = "http://unraid";
+const LEGACY_VM_METADATA_URI = "unraid";
 
 function decodeXml(value: string): string {
   return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
@@ -26,7 +28,7 @@ export function parseVmDomainXml(xml: string): { id: string; name: string; icon:
 
 export function replaceVmMetadataIcon(metadata: string | null, icon: string, name: string): string {
   const safeIcon = encodeXml(icon);
-  if (!metadata) return `<vmtemplate xmlns="unraid" name="${encodeXml(name)}" icon="${safeIcon}" os="other"/>`;
+  if (!metadata) return `<vmtemplate xmlns="http://unraid" name="${encodeXml(name)}" icon="${safeIcon}" os="other"/>`;
   if (/\bicon\s*=\s*(["']).*?\1/.test(metadata)) return metadata.replace(/\bicon\s*=\s*(["']).*?\1/, `icon="${safeIcon}"`);
   return metadata.replace(/<vmtemplate\b/, `<vmtemplate icon="${safeIcon}"`);
 }
@@ -34,6 +36,12 @@ export function replaceVmMetadataIcon(metadata: string | null, icon: string, nam
 async function virsh(config: AppConfig, args: string[]): Promise<string> {
   const result = await execFileAsync("virsh", ["-c", config.libvirtUri ?? "qemu+unix:///system?socket=/var/run/libvirt/libvirt-sock", ...args], { timeout: 12_000, maxBuffer: 2 * 1024 * 1024 });
   return result.stdout.trim();
+}
+
+async function removeLegacyVmMetadata(config: AppConfig, vmId: string, live: boolean): Promise<void> {
+  try {
+    await virsh(config, ["metadata", vmId, "--uri", LEGACY_VM_METADATA_URI, "--remove", live ? "--live" : "--config"]);
+  } catch { /* Versions before 0.1.21 may have left bad-namespace metadata; absence is expected. */ }
 }
 
 async function copyVmIcon(source: string, target: string): Promise<void> {
@@ -74,8 +82,12 @@ export async function updateVirtualMachineIcon(config: AppConfig, vmId: string, 
   await mkdir(vmIconsDir, { recursive: true });
   await copyVmIcon(sourcePng, join(vmIconsDir, fileName));
   const metadata = replaceVmMetadataIcon(parsed.metadata, fileName, parsed.name);
-  await virsh(config, ["metadata", vmId, "--uri", "unraid", "--key", "vmtemplate", "--set", metadata, "--config"]);
+  await virsh(config, ["metadata", vmId, "--uri", UNRAID_VM_METADATA_URI, "--key", "vmtemplate", "--set", metadata, "--config"]);
   const state = await virsh(config, ["domstate", vmId]);
-  if (/running/i.test(state)) await virsh(config, ["metadata", vmId, "--uri", "unraid", "--key", "vmtemplate", "--set", metadata, "--live"]);
+  await removeLegacyVmMetadata(config, vmId, false);
+  if (/running/i.test(state)) {
+    await virsh(config, ["metadata", vmId, "--uri", UNRAID_VM_METADATA_URI, "--key", "vmtemplate", "--set", metadata, "--live"]);
+    await removeLegacyVmMetadata(config, vmId, true);
+  }
   return { id: parsed.id, name: parsed.name, state, icon: fileName, displayIcon: `/api/vms/icon/${encodeURIComponent(fileName)}` };
 }
