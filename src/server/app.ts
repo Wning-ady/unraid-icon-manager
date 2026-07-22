@@ -13,6 +13,7 @@ import { downloadRemoteImage } from "./remote-image-service.js";
 import { deleteWallpaper, listWallpaperFiles, storeWallpaper, wallpaperPath } from "./wallpaper-service.js";
 import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
 import { synchronizeContainerIcon } from "./container-sync-service.js";
+import { listVirtualMachines, updateVirtualMachineIcon } from "./vm-service.js";
 
 function stringArray(value: unknown, label: string): string[] {
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error(`${label} must be a string array`);
@@ -83,7 +84,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       const body = request.body;
       if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("设置必须是 JSON 对象");
       const patch = body as Record<string, unknown>;
-      const allowed = new Set(["theme", "wallpaperFileName", "glassBlur"]);
+      const allowed = new Set(["theme", "wallpaperFileName", "glassBlur", "surfaceOpacity"]);
       if (Object.keys(patch).some((key) => !allowed.has(key))) throw new Error("包含未知的 UI 设置字段");
       const current = database.getUiSettings();
       const next: UiSettings = { ...current };
@@ -106,10 +107,41 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         }
         next.glassBlur = patch.glassBlur as number;
       }
+      if ("surfaceOpacity" in patch) {
+        if (!Number.isInteger(patch.surfaceOpacity) || (patch.surfaceOpacity as number) < 0 || (patch.surfaceOpacity as number) > 100) {
+          throw new Error("surfaceOpacity 必须是 0 到 100 的整数");
+        }
+        next.surfaceOpacity = patch.surfaceOpacity as number;
+      }
       return database.updateUiSettings(next);
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
   app.get("/api/containers", async () => listContainers(config));
+  app.get("/api/vms", async () => listVirtualMachines(config));
+  app.get("/api/vms/icon/:fileName", async (request, reply) => {
+    const fileName = (request.params as { fileName: string }).fileName;
+    if (!/^[A-Za-z0-9_.-]+$/.test(fileName)) return reply.code(404).send({ message: "VM 图标不存在" });
+    try {
+      const handle = await open(join(config.vmIconsDir ?? "/unraid/vm-icons", fileName), constants.O_RDONLY | constants.O_NOFOLLOW);
+      if (!(await handle.stat()).isFile()) { await handle.close(); return reply.code(404).send({ message: "VM 图标不存在" }); }
+      return reply.type("image/png").send(handle.createReadStream());
+    } catch { return reply.code(404).send({ message: "VM 图标不存在" }); }
+  });
+  app.post("/api/vms/:vmId/icon", async (request, reply) => {
+    try {
+      const vmId = (request.params as { vmId: string }).vmId;
+      const body = request.body as { icon?: unknown };
+      if (typeof body.icon !== "string" || !body.icon.trim()) throw new Error("图标不能为空");
+      let fileName = ownIconFile(config, body.icon);
+      if (!fileName) {
+        const content = await downloadImage(validateIconUrl(body.icon.trim()), config.maxUploadBytes);
+        fileName = (await storeUploadedIcon(config, content)).fileName;
+      }
+      database.ensureIconAsset(fileName);
+      const vm = await updateVirtualMachineIcon(config, vmId, join(config.iconsDir, fileName), fileName);
+      return { vm, icon: uploadedIconUrl(config, request, fileName), refreshUrl: config.unraidVmUrl, notice: `已更新虚拟机 ${vm.name} 的图标，无需重启虚拟机。` };
+    } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
+  });
   app.get("/api/containers/icon-cache/:containerName", async (request, reply) => {
     try {
       const containerName = (request.params as { containerName: string }).containerName;
@@ -122,15 +154,36 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
 
   app.post("/api/icons/upload", async (request, reply) => {
     try {
-      const body = request.body as { contentBase64?: unknown };
+      const body = request.body as { contentBase64?: unknown; groupId?: unknown };
       if (typeof body?.contentBase64 !== "string") throw new Error("contentBase64 is required");
       const content = body.contentBase64.replace(/^data:[^;]+;base64,/, "");
       const result = await storeUploadedIcon(config, Buffer.from(content, "base64"));
+      if (body.groupId !== undefined) database.setIconGroup(result.fileName, body.groupId === null ? null : Number(body.groupId));
+      else database.ensureIconAsset(result.fileName);
       return reply.code(201).send({ ...result, icon: uploadedIconUrl(config, request, result.fileName), previewUrl: `/api/icons/file/${result.fileName}` });
     } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
   });
 
-  app.get("/api/icons", async (request) => listStoredIcons(config, publicBaseUrl(config, request)));
+  app.get("/api/icon-groups", async () => database.listIconGroups());
+  app.post("/api/icon-groups", async (request, reply) => {
+    try {
+      const body = request.body as { name?: unknown };
+      if (typeof body?.name !== "string") throw new Error("分组名称不能为空");
+      return reply.code(201).send(database.addIconGroup(body.name));
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
+  app.get("/api/icons", async (request) => listStoredIcons(config, publicBaseUrl(config, request), database.iconGroupMap()));
+
+  app.patch("/api/icons/:fileName", async (request, reply) => {
+    try {
+      const fileName = (request.params as { fileName: string }).fileName;
+      if (!/^[a-f0-9]{64}\.png$/.test(fileName) || !existsSync(join(config.iconsDir, fileName))) throw new Error("图标不存在");
+      const body = request.body as { groupId?: unknown };
+      const groupId = body.groupId === null ? null : Number(body.groupId);
+      database.setIconGroup(fileName, groupId);
+      return { ok: true };
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
 
   app.delete("/api/icons/:fileName", async (request, reply) => {
     try {
@@ -145,6 +198,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
           error.statusCode = 409; throw error;
         }
         await deleteStoredIcon(config, fileName);
+        database.removeIcon(fileName);
       });
       return reply.code(204).send();
     } catch (error) { const detail = httpError(error); return reply.code((error as { statusCode?: number }).statusCode ?? detail.statusCode).send(detail); }
@@ -181,6 +235,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         const downloaded = await downloadImage(remoteUrl, config.maxUploadBytes);
         fileName = (await storeUploadedIcon(config, downloaded)).fileName;
       }
+      database.ensureIconAsset(fileName);
       const icon = uploadedIconUrl(config, request, fileName);
       const iconPng = await resolveOwnUploadedIconPng(config, icon);
       const results = [];

@@ -76,33 +76,53 @@ test("uploads, imports, groups, downloads and deletes wallpapers", async () => {
   } finally { await app.close(); }
 });
 
+test("creates icon groups, uploads into a group and moves icons", async () => {
+  const { app, png } = await fixture();
+  try {
+    const group = await app.inject({ method: "POST", url: "/api/icon-groups", payload: { name: "系统" } });
+    assert.equal(group.statusCode, 201); const groupId = group.json().id as number;
+    const duplicate = await app.inject({ method: "POST", url: "/api/icon-groups", payload: { name: "系统" } });
+    assert.equal(duplicate.statusCode, 400);
+    const uploaded = await app.inject({ method: "POST", url: "/api/icons/upload", payload: { contentBase64: png.toString("base64"), groupId } });
+    assert.equal(uploaded.statusCode, 201); const fileName = uploaded.json().fileName as string;
+    let icons = (await app.inject({ method: "GET", url: "/api/icons", headers: { host: "unraid:8787" } })).json();
+    assert.equal(icons[0].groupId, groupId);
+    const moved = await app.inject({ method: "PATCH", url: `/api/icons/${fileName}`, payload: { groupId: null } });
+    assert.equal(moved.statusCode, 200);
+    icons = (await app.inject({ method: "GET", url: "/api/icons", headers: { host: "unraid:8787" } })).json();
+    assert.equal(icons[0].groupId, null);
+    const invalid = await app.inject({ method: "PATCH", url: `/api/icons/${fileName}`, payload: { groupId: 9999 } });
+    assert.equal(invalid.statusCode, 400);
+  } finally { await app.close(); }
+});
+
 test("persists UI settings, validates updates and clears a deleted active wallpaper", async () => {
   const { app, config, png } = await fixture();
   let activeApp = app;
   try {
     const defaults = await activeApp.inject({ method: "GET", url: "/api/ui-settings" });
     assert.equal(defaults.statusCode, 200);
-    assert.deepEqual(defaults.json(), { theme: "dark", wallpaperFileName: null, glassBlur: 12 });
+    assert.deepEqual(defaults.json(), { theme: "dark", wallpaperFileName: null, glassBlur: 12, surfaceOpacity: 70 });
 
     const uploaded = await activeApp.inject({ method: "POST", url: "/api/wallpapers/upload", payload: { contentBase64: png.toString("base64") } });
     assert.equal(uploaded.statusCode, 201);
     const fileName = uploaded.json().fileName as string;
-    const updated = await activeApp.inject({ method: "PATCH", url: "/api/ui-settings", payload: { theme: "light", wallpaperFileName: fileName, glassBlur: 18 } });
+    const updated = await activeApp.inject({ method: "PATCH", url: "/api/ui-settings", payload: { theme: "light", wallpaperFileName: fileName, glassBlur: 18, surfaceOpacity: 0 } });
     assert.equal(updated.statusCode, 200);
-    assert.deepEqual(updated.json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18 });
+    assert.deepEqual(updated.json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18, surfaceOpacity: 0 });
 
-    for (const payload of [{ theme: "system" }, { glassBlur: 31 }, { glassBlur: 1.5 }, { wallpaperFileName: `${"0".repeat(64)}.png` }, { extra: true }]) {
+    for (const payload of [{ theme: "system" }, { glassBlur: 31 }, { glassBlur: 1.5 }, { surfaceOpacity: 101 }, { surfaceOpacity: 1.5 }, { wallpaperFileName: `${"0".repeat(64)}.png` }, { extra: true }]) {
       const invalid = await activeApp.inject({ method: "PATCH", url: "/api/ui-settings", payload });
       assert.equal(invalid.statusCode, 400);
     }
-    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18 });
+    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18, surfaceOpacity: 0 });
 
     await activeApp.close();
     activeApp = createApp(config);
-    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18 });
+    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18, surfaceOpacity: 0 });
 
     const removed = await activeApp.inject({ method: "DELETE", url: `/api/wallpapers/${fileName}` });
     assert.equal(removed.statusCode, 204);
-    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: null, glassBlur: 18 });
+    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: null, glassBlur: 18, surfaceOpacity: 0 });
   } finally { await activeApp.close(); }
 });

@@ -38,7 +38,10 @@ export function loadConfig(env = process.env): AppConfig {
     composeProjectsDir: env.COMPOSE_PROJECTS_DIR ? requiredDirectory(env.COMPOSE_PROJECTS_DIR, "COMPOSE_PROJECTS_DIR") : undefined,
     composeHostRoot: env.COMPOSE_HOST_ROOT ? requiredDirectory(env.COMPOSE_HOST_ROOT, "COMPOSE_HOST_ROOT") : undefined,
     publicBaseUrl: optionalHttpUrl(env.PUBLIC_BASE_URL, "PUBLIC_BASE_URL"),
-    unraidDockerUrl: optionalHttpUrl(env.UNRAID_DOCKER_URL, "UNRAID_DOCKER_URL") ?? "/Docker"
+    unraidDockerUrl: optionalHttpUrl(env.UNRAID_DOCKER_URL, "UNRAID_DOCKER_URL") ?? "/Docker",
+    vmIconsDir: requiredDirectory(env.VM_ICONS_DIR ?? "/unraid/vm-icons", "VM_ICONS_DIR"),
+    libvirtUri: env.LIBVIRT_URI ?? "qemu+unix:///system?socket=/var/run/libvirt/libvirt-sock",
+    unraidVmUrl: optionalHttpUrl(env.UNRAID_VM_URL, "UNRAID_VM_URL") ?? "/VMs"
   };
   if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
     throw new Error("PORT must be between 1 and 65535");

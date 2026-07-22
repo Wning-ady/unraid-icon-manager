@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.18
+
+- Fix the batch preview title layout.
+- Replace the blur-only control with a persistent 0–100% surface-opacity control whose endpoints fully reveal or fully hide the wallpaper.
+- Add custom groups and category filtering to the icon gallery.
+- Add optional Unraid VM icon management through libvirt metadata without restarting virtual machines.
+
 ## 0.1.17
 
 - Let any saved wallpaper become the management-interface background from a hover action in the wallpaper gallery.

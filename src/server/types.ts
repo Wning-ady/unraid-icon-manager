@@ -21,6 +21,17 @@ export interface AppConfig {
   /** Public URL used by Unraid itself to download uploaded icons. */
   publicBaseUrl?: string;
   unraidDockerUrl?: string;
+  vmIconsDir?: string;
+  libvirtUri?: string;
+  unraidVmUrl?: string;
+}
+
+export interface ManagedVirtualMachine {
+  id: string;
+  name: string;
+  state: string;
+  icon: string | null;
+  displayIcon: string | null;
 }
 
 export interface TemplateRecord {
@@ -63,6 +74,13 @@ export interface StoredIcon {
   icon: string;
   bytes: number;
   createdAt: string;
+  groupId: number | null;
+}
+
+export interface IconGroup {
+  id: number;
+  name: string;
+  createdAt: string;
 }
 
 export interface WallpaperGroup {
@@ -88,6 +106,7 @@ export interface UiSettings {
   theme: "light" | "dark";
   wallpaperFileName: string | null;
   glassBlur: number;
+  surfaceOpacity: number;
 }
 
 export interface AuditRecord {
