@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>unraid-icon-manager</Name>
-  <Repository>waning/unraid-icon-manager:v0.1.18</Repository>
+  <Repository>waning/unraid-icon-manager:v0.1.19</Repository>
   <Registry>https://hub.docker.com/r/waning/unraid-icon-manager</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -27,8 +27,8 @@
   <Config Name="RAM icon cache" Target="/unraid/icon-cache-ram" Default="/usr/local/emhttp/state/plugins/dynamix.docker.manager/images" Mode="rw" Description="Required to invalidate only changed runtime Docker Manager icon cache files" Type="Path" Display="always" Required="true" Mask="false">/usr/local/emhttp/state/plugins/dynamix.docker.manager/images</Config>
   <Config Name="Compose Manager projects" Target="/unraid/compose-projects" Default="/mnt/user/docker" Mode="rw" Description="Compose Manager PROJECTS_FOLDER; used only to update the selected service icon in docker-compose.override.yml" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/docker</Config>
   <Config Name="Docker socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Reads containers and recreates only explicitly synchronized targets so immutable icon labels update" Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
-  <Config Name="VM icon directory" Target="/unraid/vm-icons" Default="/usr/local/emhttp/plugins/dynamix.vm.manager/templates/images" Mode="rw" Description="Optional: Unraid VM Manager icon files" Type="Path" Display="advanced" Required="false" Mask="false">/usr/local/emhttp/plugins/dynamix.vm.manager/templates/images</Config>
-  <Config Name="libvirt socket" Target="/var/run/libvirt/libvirt-sock" Default="/var/run/libvirt/libvirt-sock" Mode="rw" Description="Optional: enables VM icon changes; grants full VM management authority, trusted LAN only" Type="Path" Display="advanced" Required="false" Mask="false">/var/run/libvirt/libvirt-sock</Config>
+  <Config Name="VM icon directory" Target="/unraid/vm-icons" Default="" Mode="rw" Description="Optional: fill only when Unraid VM Manager is enabled" Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="libvirt socket" Target="/var/run/libvirt/libvirt-sock" Default="" Mode="rw" Description="Optional: fill only when VM Manager is enabled; grants full VM management authority" Type="Path" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Icon host path" Target="ICON_HOST_ROOT" Default="/mnt/user/appdata/unraid-icon-manager/icons" Mode="" Description="Host-side location matching /config/icons; uploads are served through the public URL below" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager/icons</Config>
   <Config Name="Wallpaper host path" Target="WALLPAPER_HOST_ROOT" Default="/mnt/user/appdata/unraid-icon-manager/wallpapers" Mode="" Description="Host-side location matching /config/wallpapers" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager/wallpapers</Config>
   <Config Name="Compose Manager host root" Target="COMPOSE_HOST_ROOT" Default="/mnt/user/docker" Mode="" Description="Host path used in com.docker.compose.project.working_dir labels; must match the Compose Manager PROJECTS_FOLDER mount above" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/docker</Config>
