@@ -104,10 +104,10 @@ Compose deployment values are written directly in [`docker-compose.yml`](docker-
 
 ## Publishing
 
-Push a tag such as `v0.1.20` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.21` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.20`
+- `waning/unraid-icon-manager:v0.1.21`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.
