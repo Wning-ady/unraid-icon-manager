@@ -210,7 +210,7 @@ Compose 内还有三个固定的容器内环境变量：`ICON_CACHE_DIR=/unraid/
 ## 升级与回滚
 
 - 升级前备份 `/mnt/user/appdata/unraid-icon-manager`；其中包含 SQLite 数据库、图标图库、审计记录与备份。
-- Compose 安装如需固定版本，直接把 `image` 改为目标完整标签（例如 `waning/unraid-icon-manager:v0.1.20`），然后只更新本工具：
+- Compose 安装如需固定版本，直接把 `image` 改为目标完整标签（例如 `waning/unraid-icon-manager:v0.1.21`），然后只更新本工具：
 
 ```bash
 docker compose pull unraid-icon-manager
@@ -233,10 +233,10 @@ npm run check
 
 ## 发布
 
-推送例如 `v0.1.20` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
+推送例如 `v0.1.21` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.20`
+- `waning/unraid-icon-manager:v0.1.21`
 - `waning/unraid-icon-manager:v0.1`
 
 仓库维护者需要配置 `DOCKERHUB_USERNAME=waning` 与 `DOCKERHUB_TOKEN` 两个 GitHub Actions Secret。凭据不会保存在仓库中。
