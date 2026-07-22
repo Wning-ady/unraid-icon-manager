@@ -1,6 +1,6 @@
 {
   "name": "unraid-icon-manager",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "private": true,
   "type": "module",
   "description": "A self-hosted bulk icon manager for Unraid Docker Manager containers.",

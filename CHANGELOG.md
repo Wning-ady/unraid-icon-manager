@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.19
+
+- Make VM icon mounts opt-in when libvirt is disabled, preventing Docker from creating a directory where the libvirt socket will later appear.
+
 ## 0.1.18
 
 - Fix the batch preview title layout.
