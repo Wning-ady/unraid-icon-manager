@@ -25,7 +25,7 @@ export async function storeUploadedIcon(config: AppConfig, buffer: Buffer): Prom
 }
 
 /** Lists only stable normalized PNG assets already stored inside /config/icons. */
-export async function listStoredIcons(config: AppConfig, baseUrl: string): Promise<StoredIcon[]> {
+export async function listStoredIcons(config: AppConfig, baseUrl: string, groupIds = new Map<string, number | null>()): Promise<StoredIcon[]> {
   await mkdir(config.iconsDir, { recursive: true });
   const entries = await readdir(config.iconsDir, { withFileTypes: true });
   const icons = await Promise.all(entries
@@ -34,7 +34,7 @@ export async function listStoredIcons(config: AppConfig, baseUrl: string): Promi
       const metadata = await stat(join(config.iconsDir, entry.name));
       const previewUrl = `/api/icons/file/${entry.name}`;
       const createdAt = metadata.birthtimeMs > 0 ? metadata.birthtime : metadata.mtime;
-      return { fileName: entry.name, previewUrl, icon: `${baseUrl}${previewUrl}`, bytes: metadata.size, createdAt: createdAt.toISOString() };
+      return { fileName: entry.name, previewUrl, icon: `${baseUrl}${previewUrl}`, bytes: metadata.size, createdAt: createdAt.toISOString(), groupId: groupIds.get(entry.name) ?? null };
     }));
   return icons.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }

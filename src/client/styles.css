@@ -79,8 +79,8 @@ small, .section-title span { color: #7f8ca1; }
 .editor { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(190px, .85fr); gap: 1.1rem; margin: 1rem 0 1.35rem; padding: 1.05rem; }
 .editor h2 { margin-bottom: .1rem; }
 .primary { width: 100%; }
-.preview { display: grid; min-height: 166px; align-content: center; justify-items: center; gap: .65rem; padding: .9rem; border: 1px dashed #bed0e8; border-radius: 10px; background: #f9fbfe; text-align: center; }
-.preview h2 { justify-self: start; }
+.preview { display: grid; grid-template-rows: auto minmax(82px, 1fr) auto; min-height: 166px; align-content: stretch; align-items: center; justify-items: center; gap: .65rem; padding: .9rem; border: 1px dashed #bed0e8; border-radius: 10px; background: #f9fbfe; text-align: center; }
+.preview h2 { align-self: start; justify-self: start; }
 .preview img { width: 82px; height: 82px; object-fit: contain; }
 .preview small { font-size: .69rem; line-height: 1.45; }
 .preview-message { max-width: 15rem; color: #8090a4; font-size: .78rem; line-height: 1.45; text-align: center; }
@@ -154,6 +154,7 @@ small, .section-title span { color: #7f8ca1; }
 .gallery-item > div { display: grid; min-width: 0; }
 .gallery-item span { overflow: hidden; color: #a8bdd0; font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; }
 .gallery-item small { font-size: .62rem; }
+.icon-meta select { width: 100%; margin-top: .4rem; padding: .4rem; border: 1px solid #31506b; border-radius: 7px; color: #dbe8f4; background: #13263c; }
 .gallery-item button { padding: .48rem; font-size: .7rem; }
 .gallery-item-actions { display: flex !important; flex-wrap: wrap; gap: .35rem; }
 .gallery-item-actions > * { flex: 1 1 auto; text-align: center; }
@@ -305,7 +306,7 @@ small, .section-title span { color: #8da5bd; }
 .modal-hint { color: #9bb1c6; }
 .modal-error { border-color: #7a4350; color: #ffbec8; background: #3b2029; }
 
-/* Wallpaper surfaces become translucent; the slider controls their real backdrop blur. */
+/* The opacity slider controls both the global wallpaper veil and every major surface. */
 :root[data-wallpaper="active"] .sidebar,
 :root[data-wallpaper="active"] .toolbar,
 :root[data-wallpaper="active"] .editor,
@@ -316,10 +317,11 @@ small, .section-title span { color: #8da5bd; }
 :root[data-wallpaper="active"] .about-page,
 :root[data-wallpaper="active"] .appearance-panel,
 :root[data-wallpaper="active"] .unraid-refresh {
-  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
-  backdrop-filter: blur(var(--glass-blur, 12px));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-:root[data-theme="dark"][data-wallpaper="active"] .sidebar { background: rgba(15, 29, 48, .76); }
+:root[data-theme="dark"][data-wallpaper="active"] .wallpaper-backdrop::after { background: rgb(5 13 25 / var(--surface-opacity, .7)); }
+:root[data-theme="dark"][data-wallpaper="active"] .sidebar { background: rgb(15 29 48 / var(--surface-opacity, .7)); }
 :root[data-theme="dark"][data-wallpaper="active"] .toolbar,
 :root[data-theme="dark"][data-wallpaper="active"] .editor,
 :root[data-theme="dark"][data-wallpaper="active"] .stats-strip div,
@@ -327,7 +329,12 @@ small, .section-title span { color: #8da5bd; }
 :root[data-theme="dark"][data-wallpaper="active"] .audit-detail,
 :root[data-theme="dark"][data-wallpaper="active"] .gallery-page,
 :root[data-theme="dark"][data-wallpaper="active"] .about-page,
-:root[data-theme="dark"][data-wallpaper="active"] .appearance-panel { background: rgba(12, 27, 45, .7); }
+:root[data-theme="dark"][data-wallpaper="active"] .appearance-panel,
+:root[data-theme="dark"][data-wallpaper="active"] .preview,
+:root[data-theme="dark"][data-wallpaper="active"] .gallery-item,
+:root[data-theme="dark"][data-wallpaper="active"] .wallpaper-item,
+:root[data-theme="dark"][data-wallpaper="active"] .empty-gallery,
+:root[data-theme="dark"][data-wallpaper="active"] .notice { background: rgb(12 27 45 / var(--surface-opacity, .7)); }
 
 /* Day mode intentionally stays calm and readable on both plain and image backgrounds. */
 :root[data-theme="light"] { color: #192338; background: #eef3f8; }
@@ -382,6 +389,7 @@ small, .section-title span { color: #8da5bd; }
 :root[data-theme="light"] .wallpaper-item,
 :root[data-theme="light"] .empty-gallery { border-color: #cbd9e6; color: #60758b; background: rgba(246, 250, 253, .9); }
 :root[data-theme="light"] .gallery-item span { color: #63778d; }
+:root[data-theme="light"] .icon-meta select,
 :root[data-theme="light"] .wallpaper-meta select { border-color: #c5d3e0; color: #293b51; background: #f5f8fb; }
 :root[data-theme="light"] .audit-icon-copy span,
 :root[data-theme="light"] .audit-paths span { color: #63798f; }
@@ -398,14 +406,21 @@ small, .section-title span { color: #8da5bd; }
 :root[data-theme="light"] .modal-actions { background: #f7f9fc; }
 :root[data-theme="light"] .modal-preview { border-color: #d8e3ed; background: #f6f9fc; }
 :root[data-theme="light"] .modal-hint { color: #62758b; }
-:root[data-theme="light"][data-wallpaper="active"] .sidebar { background: rgba(26, 39, 56, .78); }
+:root[data-theme="light"][data-wallpaper="active"] .wallpaper-backdrop::after { background: rgb(239 245 250 / var(--surface-opacity, .7)); }
+:root[data-theme="light"][data-wallpaper="active"] .sidebar { background: rgb(26 39 56 / var(--surface-opacity, .7)); }
 :root[data-theme="light"][data-wallpaper="active"] .toolbar,
 :root[data-theme="light"][data-wallpaper="active"] .editor,
 :root[data-theme="light"][data-wallpaper="active"] .stats-strip div,
 :root[data-theme="light"][data-wallpaper="active"] .card,
 :root[data-theme="light"][data-wallpaper="active"] .audit-detail,
 :root[data-theme="light"][data-wallpaper="active"] .gallery-page,
-:root[data-theme="light"][data-wallpaper="active"] .about-page { background: rgba(255, 255, 255, .68); }
+:root[data-theme="light"][data-wallpaper="active"] .about-page,
+:root[data-theme="light"][data-wallpaper="active"] .appearance-panel,
+:root[data-theme="light"][data-wallpaper="active"] .preview,
+:root[data-theme="light"][data-wallpaper="active"] .gallery-item,
+:root[data-theme="light"][data-wallpaper="active"] .wallpaper-item,
+:root[data-theme="light"][data-wallpaper="active"] .empty-gallery,
+:root[data-theme="light"][data-wallpaper="active"] .notice { background: rgb(255 255 255 / var(--surface-opacity, .7)); }
 
 @media (max-width: 900px) {
   .sidebar { flex-basis: 200px; width: 200px; }
