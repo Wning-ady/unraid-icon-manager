@@ -3,7 +3,7 @@ import { open } from "node:fs/promises";
 import { join } from "node:path";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
-import type { AppConfig } from "./types.js";
+import type { AppConfig, UiSettings } from "./types.js";
 import { AppDatabase } from "./database.js";
 import { listManagedContainers } from "./container-service.js";
 import { createGeneratedTemplate, getTemplate, listTemplates, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "./template-service.js";
@@ -77,6 +77,38 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
   app.get("/api/about", async () => ({ version: appVersion, githubUrl: "https://github.com/Wning-ady/unraid-icon-manager",
     iconHostRoot: config.iconHostRoot, iconContainerRoot: "/config/icons",
     wallpaperHostRoot: config.wallpaperHostRoot ?? join(config.configDir, "wallpapers"), wallpaperContainerRoot: "/config/wallpapers" }));
+  app.get("/api/ui-settings", async () => database.getUiSettings());
+  app.patch("/api/ui-settings", async (request, reply) => {
+    try {
+      const body = request.body;
+      if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("设置必须是 JSON 对象");
+      const patch = body as Record<string, unknown>;
+      const allowed = new Set(["theme", "wallpaperFileName", "glassBlur"]);
+      if (Object.keys(patch).some((key) => !allowed.has(key))) throw new Error("包含未知的 UI 设置字段");
+      const current = database.getUiSettings();
+      const next: UiSettings = { ...current };
+      if ("theme" in patch) {
+        if (patch.theme !== "light" && patch.theme !== "dark") throw new Error("theme 必须是 light 或 dark");
+        next.theme = patch.theme;
+      }
+      if ("wallpaperFileName" in patch) {
+        if (patch.wallpaperFileName !== null && typeof patch.wallpaperFileName !== "string") throw new Error("wallpaperFileName 必须是字符串或 null");
+        if (typeof patch.wallpaperFileName === "string") {
+          if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(patch.wallpaperFileName) || !existsSync(wallpaperPath(config, patch.wallpaperFileName))) {
+            throw new Error("壁纸不存在");
+          }
+        }
+        next.wallpaperFileName = patch.wallpaperFileName;
+      }
+      if ("glassBlur" in patch) {
+        if (!Number.isInteger(patch.glassBlur) || (patch.glassBlur as number) < 0 || (patch.glassBlur as number) > 30) {
+          throw new Error("glassBlur 必须是 0 到 30 的整数");
+        }
+        next.glassBlur = patch.glassBlur as number;
+      }
+      return database.updateUiSettings(next);
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
   app.get("/api/containers", async () => listContainers(config));
   app.get("/api/containers/icon-cache/:containerName", async (request, reply) => {
     try {

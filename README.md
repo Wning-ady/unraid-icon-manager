@@ -37,7 +37,7 @@
 - 每次上传或实际使用外部图标 URL 时，都会先下载、校验、规范化为稳定 PNG，按内容去重后持久保存到图标图库；下载失败时不会修改模板。
 - 图标图库支持复制宿主机/容器根目录；每张图标还可复制自身完整 HTTP 地址、完整宿主机文件路径和完整容器文件路径。仍被模板或变更历史引用的图标会被保护，避免破坏当前显示或回滚。
 - 可从明确的 Docker Compose/容器标签及本地镜像元数据发现图标候选；选择候选后同样会先安全下载入库，不读取 Compose 文件或拉取镜像。
-- 新增独立壁纸图库：支持 PNG/JPEG/WebP 上传、公网 URL 下载、下载到本地、删除、新建手动分组与移动分类。每张壁纸可复制自身完整 HTTP 地址或完整宿主机文件路径，例如 `http://UNRAID:8787/api/wallpapers/file/example.png` 和 `/mnt/user/appdata/unraid-icon-manager/wallpapers/example.png`。壁纸原始分辨率与字节会保留在 `/config/wallpapers`。
+- 新增独立壁纸图库：支持 PNG/JPEG/WebP 上传、公网 URL 下载、下载到本地、删除、新建手动分组与移动分类。鼠标移到任意壁纸可直接设为管理界面背景；左下角可切换日间/夜间模式，并通过滑块调节毛玻璃强度。背景与外观设置随 `/config` 持久保存。每张壁纸还可复制自身完整 HTTP 地址或完整宿主机文件路径，例如 `http://UNRAID:8787/api/wallpapers/file/example.png` 和 `/mnt/user/appdata/unraid-icon-manager/wallpapers/example.png`。
 - 每次修改都会创建带时间戳的模板备份与审计记录；可单项回滚。回滚只会删除本工具创建且仍匹配的生成模板。
 - 图标图库中的 PNG 会直接写入目标容器的 RAM 与持久图标缓存。两份旧缓存都会进入审计备份，可原样回滚。
 - 通过 `UNRAID_DOCKER_URL` 提供**同步到 Unraid 并打开 Docker 页面**操作。
@@ -143,7 +143,7 @@ curl http://你的_UNRAID_IP:8787/api/health
 | 字段 | 当前设置 | 含义与注意事项 |
 | --- | --- | --- |
 | `services.unraid-icon-manager` | 服务名 | Compose 内部服务标识；升级命令可以只操作它，避免影响同一项目里的其他服务。 |
-| `image` | `waning/unraid-icon-manager:latest` | 要运行的镜像。`latest` 跟随最新版；希望升级可控时，直接改为 `waning/unraid-icon-manager:v0.1.16`。 |
+| `image` | `waning/unraid-icon-manager:latest` | 要运行的镜像。`latest` 跟随最新版；希望升级可控时，直接改为 `waning/unraid-icon-manager:v0.1.17`。 |
 | `container_name` | `unraid-icon-manager` | 固定容器名，便于在 Unraid 和命令行中查找。若已有同名容器会冲突；本工具不应运行多个副本。 |
 | `ports` | `8787:8787` | 左侧是 Unraid 主机端口，右侧是容器内固定端口。只改左侧即可换访问端口，同时必须修改 `PUBLIC_BASE_URL`。默认监听主机全部网络接口，所以只能在可信局域网使用。 |
 | `environment` | 见下表 | 时区、上传限制、图标地址和 Unraid 页面地址全部直接写在 YAML 中；修改后重新创建本工具容器即可生效。 |
@@ -194,7 +194,7 @@ Compose 内还有三个固定的容器内环境变量：`ICON_CACHE_DIR=/unraid/
 ## 升级与回滚
 
 - 升级前备份 `/mnt/user/appdata/unraid-icon-manager`；其中包含 SQLite 数据库、图标图库、审计记录与备份。
-- Compose 安装如需固定版本，直接把 `image` 改为目标完整标签（例如 `waning/unraid-icon-manager:v0.1.16`），然后只更新本工具：
+- Compose 安装如需固定版本，直接把 `image` 改为目标完整标签（例如 `waning/unraid-icon-manager:v0.1.17`），然后只更新本工具：
 
 ```bash
 docker compose pull unraid-icon-manager
@@ -217,10 +217,10 @@ npm run check
 
 ## 发布
 
-推送例如 `v0.1.16` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
+推送例如 `v0.1.17` 的标签后，GitHub Actions 会发布以下 Docker Hub 标签：
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.16`
+- `waning/unraid-icon-manager:v0.1.17`
 - `waning/unraid-icon-manager:v0.1`
 
 仓库维护者需要配置 `DOCKERHUB_USERNAME=waning` 与 `DOCKERHUB_TOKEN` 两个 GitHub Actions Secret。凭据不会保存在仓库中。

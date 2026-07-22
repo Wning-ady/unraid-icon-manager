@@ -75,3 +75,34 @@ test("uploads, imports, groups, downloads and deletes wallpapers", async () => {
     assert.equal(removed.statusCode, 204);
   } finally { await app.close(); }
 });
+
+test("persists UI settings, validates updates and clears a deleted active wallpaper", async () => {
+  const { app, config, png } = await fixture();
+  let activeApp = app;
+  try {
+    const defaults = await activeApp.inject({ method: "GET", url: "/api/ui-settings" });
+    assert.equal(defaults.statusCode, 200);
+    assert.deepEqual(defaults.json(), { theme: "dark", wallpaperFileName: null, glassBlur: 12 });
+
+    const uploaded = await activeApp.inject({ method: "POST", url: "/api/wallpapers/upload", payload: { contentBase64: png.toString("base64") } });
+    assert.equal(uploaded.statusCode, 201);
+    const fileName = uploaded.json().fileName as string;
+    const updated = await activeApp.inject({ method: "PATCH", url: "/api/ui-settings", payload: { theme: "light", wallpaperFileName: fileName, glassBlur: 18 } });
+    assert.equal(updated.statusCode, 200);
+    assert.deepEqual(updated.json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18 });
+
+    for (const payload of [{ theme: "system" }, { glassBlur: 31 }, { glassBlur: 1.5 }, { wallpaperFileName: `${"0".repeat(64)}.png` }, { extra: true }]) {
+      const invalid = await activeApp.inject({ method: "PATCH", url: "/api/ui-settings", payload });
+      assert.equal(invalid.statusCode, 400);
+    }
+    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18 });
+
+    await activeApp.close();
+    activeApp = createApp(config);
+    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: fileName, glassBlur: 18 });
+
+    const removed = await activeApp.inject({ method: "DELETE", url: `/api/wallpapers/${fileName}` });
+    assert.equal(removed.statusCode, 204);
+    assert.deepEqual((await activeApp.inject({ method: "GET", url: "/api/ui-settings" })).json(), { theme: "light", wallpaperFileName: null, glassBlur: 18 });
+  } finally { await activeApp.close(); }
+});

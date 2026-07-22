@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.17
+
+- Let any saved wallpaper become the management-interface background from a hover action in the wallpaper gallery.
+- Add compact day/night theme buttons and a 0–30 px glass-blur slider to the bottom of the sidebar.
+- Persist the selected wallpaper, theme and glass strength in `/config` SQLite across browser sessions and container restarts; deleting the active wallpaper safely restores the default background.
+
 ## 0.1.16
 
 - Make `docker-compose.yml` fully self-contained: remove all `.env` interpolation, place image, port, paths, limits and URLs directly in YAML, and remove `.env.example`.
