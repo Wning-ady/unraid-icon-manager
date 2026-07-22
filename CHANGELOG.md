@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.21
+
+- Fix Unraid 7 VM icon updates by using the real `http://unraid` libvirt metadata namespace and clean up metadata written by older versions with the wrong namespace.
+- Add shared group filtering and search to the container and VM icon pickers, with a persistent high-contrast selected state.
+- Keep action buttons and controls readable over wallpapers and replace repeated opacity stacking with a linear veil plus subtle glass surfaces.
+
 ## 0.1.20
 
 - Make controls and secondary surfaces follow the opacity endpoints too, so `0%` leaves no colored UI blocks over the wallpaper.
