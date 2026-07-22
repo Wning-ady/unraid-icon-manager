@@ -84,6 +84,12 @@ export interface StoredWallpaper {
   createdAt: string;
 }
 
+export interface UiSettings {
+  theme: "light" | "dark";
+  wallpaperFileName: string | null;
+  glassBlur: number;
+}
+
 export interface AuditRecord {
   id: number;
   containerName: string;

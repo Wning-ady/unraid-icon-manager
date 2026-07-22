@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { join } from "node:path";
-import type { AppConfig, AuditRecord, WallpaperGroup } from "./types.js";
+import type { AppConfig, AuditRecord, UiSettings, WallpaperGroup } from "./types.js";
 
 export class AppDatabase {
   private readonly database: Database.Database;
@@ -12,6 +12,13 @@ export class AppDatabase {
       CREATE TABLE IF NOT EXISTS audits (id INTEGER PRIMARY KEY, container_name TEXT NOT NULL, template_file TEXT NOT NULL, old_icon TEXT, new_icon TEXT, backup_file TEXT NOT NULL, created_at TEXT NOT NULL, result TEXT NOT NULL CHECK(result IN ('applied', 'restored')));
       CREATE TABLE IF NOT EXISTS wallpaper_groups (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS wallpaper_assets (file_name TEXT PRIMARY KEY, group_id INTEGER REFERENCES wallpaper_groups(id) ON DELETE SET NULL);
+      CREATE TABLE IF NOT EXISTS ui_settings (
+        id INTEGER PRIMARY KEY CHECK(id = 1),
+        theme TEXT NOT NULL CHECK(theme IN ('light', 'dark')),
+        wallpaper_file_name TEXT,
+        glass_blur INTEGER NOT NULL CHECK(glass_blur BETWEEN 0 AND 30)
+      );
+      INSERT OR IGNORE INTO ui_settings (id, theme, wallpaper_file_name, glass_blur) VALUES (1, 'dark', NULL, 12);
     `);
     const auditColumns = this.database.prepare("PRAGMA table_info(audits)").all() as Array<{ name: string }>;
     if (!auditColumns.some((column) => column.name === "template_created")) {
@@ -82,7 +89,27 @@ export class AppDatabase {
       .map((row) => [row.file_name, row.group_id]));
   }
 
-  removeWallpaper(fileName: string): void { this.database.prepare("DELETE FROM wallpaper_assets WHERE file_name = ?").run(fileName); }
+  getUiSettings(): UiSettings {
+    const row = this.database.prepare("SELECT theme, wallpaper_file_name, glass_blur FROM ui_settings WHERE id = 1").get() as {
+      theme: UiSettings["theme"];
+      wallpaper_file_name: string | null;
+      glass_blur: number;
+    };
+    return { theme: row.theme, wallpaperFileName: row.wallpaper_file_name, glassBlur: row.glass_blur };
+  }
+
+  updateUiSettings(settings: UiSettings): UiSettings {
+    this.database.prepare("UPDATE ui_settings SET theme = ?, wallpaper_file_name = ?, glass_blur = ? WHERE id = 1")
+      .run(settings.theme, settings.wallpaperFileName, settings.glassBlur);
+    return this.getUiSettings();
+  }
+
+  removeWallpaper(fileName: string): void {
+    this.database.transaction(() => {
+      this.database.prepare("DELETE FROM wallpaper_assets WHERE file_name = ?").run(fileName);
+      this.database.prepare("UPDATE ui_settings SET wallpaper_file_name = NULL WHERE id = 1 AND wallpaper_file_name = ?").run(fileName);
+    })();
+  }
 
   getAudit(id: number): AuditRecord | undefined {
     return this.listAudits(10000).find((record) => record.id === id);
