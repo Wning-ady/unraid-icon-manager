@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>unraid-icon-manager</Name>
-  <Repository>waning/unraid-icon-manager:v0.1.19</Repository>
+  <Repository>waning/unraid-icon-manager:v0.1.20</Repository>
   <Registry>https://hub.docker.com/r/waning/unraid-icon-manager</Registry>
   <Network>bridge</Network>
   <MyIP/>

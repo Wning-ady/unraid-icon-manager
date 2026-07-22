@@ -335,6 +335,13 @@ small, .section-title span { color: #8da5bd; }
 :root[data-theme="dark"][data-wallpaper="active"] .wallpaper-item,
 :root[data-theme="dark"][data-wallpaper="active"] .empty-gallery,
 :root[data-theme="dark"][data-wallpaper="active"] .notice { background: rgb(12 27 45 / var(--surface-opacity, .7)); }
+:root[data-theme="dark"][data-wallpaper="active"] button,
+:root[data-theme="dark"][data-wallpaper="active"] input,
+:root[data-theme="dark"][data-wallpaper="active"] select,
+:root[data-theme="dark"][data-wallpaper="active"] .summary,
+:root[data-theme="dark"][data-wallpaper="active"] .result-count,
+:root[data-theme="dark"][data-wallpaper="active"] .theme-switch,
+:root[data-theme="dark"][data-wallpaper="active"] .icon { background-color: rgb(12 27 45 / var(--surface-opacity, .7)); }
 
 /* Day mode intentionally stays calm and readable on both plain and image backgrounds. */
 :root[data-theme="light"] { color: #192338; background: #eef3f8; }
@@ -421,6 +428,13 @@ small, .section-title span { color: #8da5bd; }
 :root[data-theme="light"][data-wallpaper="active"] .wallpaper-item,
 :root[data-theme="light"][data-wallpaper="active"] .empty-gallery,
 :root[data-theme="light"][data-wallpaper="active"] .notice { background: rgb(255 255 255 / var(--surface-opacity, .7)); }
+:root[data-theme="light"][data-wallpaper="active"] button,
+:root[data-theme="light"][data-wallpaper="active"] input,
+:root[data-theme="light"][data-wallpaper="active"] select,
+:root[data-theme="light"][data-wallpaper="active"] .summary,
+:root[data-theme="light"][data-wallpaper="active"] .result-count,
+:root[data-theme="light"][data-wallpaper="active"] .theme-switch,
+:root[data-theme="light"][data-wallpaper="active"] .icon { background-color: rgb(255 255 255 / var(--surface-opacity, .7)); }
 
 @media (max-width: 900px) {
   .sidebar { flex-basis: 200px; width: 200px; }

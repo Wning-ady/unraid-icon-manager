@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.20
+
+- Make controls and secondary surfaces follow the opacity endpoints too, so `0%` leaves no colored UI blocks over the wallpaper.
+
 ## 0.1.19
 
 - Make VM icon mounts opt-in when libvirt is disabled, preventing Docker from creating a directory where the libvirt socket will later appear.
