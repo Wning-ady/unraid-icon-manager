@@ -12,7 +12,7 @@
 Bulk-manage icons for **currently deployed** Unraid Docker containers from a small self-hosted web UI. Saving changes templates, galleries, and caches only. The explicit **Sync to Unraid** action persists the immutable `net.unraid.docker.icon` label and recreates only the selected containers. The Chinese [README](README.md) is the primary and most detailed documentation.
 
 > [!WARNING]
-> Keep this service on a trusted LAN. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. The sync action uses the Docker API to recreate selected containers. A Docker socket remains highly sensitive even when mounted `:ro`; do not expose this service, its port, or an unauthenticated reverse proxy to the public internet.
+> Keep this service on a trusted LAN. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. The sync action uses the Docker API to recreate selected containers. A Docker socket remains highly sensitive even when mounted `:ro`; do not expose this service, its port, or an unauthenticated reverse proxy to the public internet. Production startup requires a random 24+ character `ADMIN_TOKEN`; management APIs require a browser login and same-origin CSRF validation.
 
 ## Features
 
@@ -61,6 +61,8 @@ Map TCP port `8787` to a free host port. Then set these required advanced variab
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | The host path corresponding to `/config/icons`; retain it when moving appdata. |
 | `WALLPAPER_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/wallpapers` | The host path corresponding to `/config/wallpapers`. |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager's `PROJECTS_FOLDER`; it must match the host side of the `/unraid/compose-projects` mount. |
+| `ADMIN_TOKEN` | random 24+ character value | Required administrator login token. Generate with `openssl rand -base64 36`; it is never stored in the database or logs. |
+| `TRUSTED_NETWORKS` | `192.168.2.0/24` | Comma-separated trusted CIDRs. Restrict it to your management LAN; connections outside it are rejected. |
 
 Open `http://YOUR_UNRAID_IP:8787` after starting. Alternatively, copy [`unraid/template.xml`](unraid/template.xml) to `/boot/config/plugins/dockerMan/templates-user/`, select **unraid-icon-manager** from **Add Container**, and fill the two URL variables before applying it.
 
@@ -104,10 +106,10 @@ Compose deployment values are written directly in [`docker-compose.yml`](docker-
 
 ## Publishing
 
-Push a tag such as `v0.1.21` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.22` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.21`
+- `waning/unraid-icon-manager:v0.1.22`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.

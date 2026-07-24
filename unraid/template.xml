@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>unraid-icon-manager</Name>
-  <Repository>waning/unraid-icon-manager:v0.1.21</Repository>
+  <Repository>waning/unraid-icon-manager:v0.1.22</Repository>
   <Registry>https://hub.docker.com/r/waning/unraid-icon-manager</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -13,7 +13,7 @@
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
   <Icon>https://raw.githubusercontent.com/Wning-ady/unraid-icon-manager/main/docs/icon.png</Icon>
-  <ExtraParams>--security-opt=no-new-privileges</ExtraParams>
+  <ExtraParams>--security-opt=no-new-privileges --cap-drop=ALL --read-only --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m --pids-limit 256 --memory 512m --cpus 1.0</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DateInstalled>0</DateInstalled>
@@ -21,6 +21,8 @@
   <DonateLink/>
   <Requires/>
   <Config Name="WebUI port" Target="8787" Default="8787" Mode="tcp" Description="Web UI port" Type="Port" Display="always" Required="true" Mask="false">8787</Config>
+  <Config Name="Admin token" Target="ADMIN_TOKEN" Default="" Mode="" Description="Required: set a unique random value of at least 24 characters. It protects Docker, template and VM management APIs; never expose this service to the Internet." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Trusted networks" Target="TRUSTED_NETWORKS" Default="127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" Mode="" Description="Comma-separated CIDRs allowed to connect. Restrict to your own LAN subnet when possible, e.g. 192.168.2.0/24." Type="Variable" Display="advanced" Required="true" Mask="false">127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16</Config>
   <Config Name="Application data" Target="/config" Default="/mnt/user/appdata/unraid-icon-manager" Mode="rw" Description="Database, icon and wallpaper galleries, audits and backups" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager</Config>
   <Config Name="Docker Manager templates" Target="/unraid/templates-user" Default="/boot/config/plugins/dockerMan/templates-user" Mode="rw" Description="Required to update icon template metadata" Type="Path" Display="always" Required="true" Mask="false">/boot/config/plugins/dockerMan/templates-user</Config>
   <Config Name="Persistent icon cache" Target="/unraid/icon-cache" Default="/var/lib/docker/unraid/images" Mode="rw" Description="Required to invalidate only changed Docker Manager icon cache files" Type="Path" Display="always" Required="true" Mask="false">/var/lib/docker/unraid/images</Config>
@@ -35,6 +37,9 @@
   <Config Name="Compose Manager container root" Target="COMPOSE_PROJECTS_DIR" Default="/unraid/compose-projects" Mode="" Description="Container path for the Compose Manager projects mount; normally do not change" Type="Variable" Display="advanced" Required="true" Mask="false">/unraid/compose-projects</Config>
   <Config Name="Public icon base URL" Target="PUBLIC_BASE_URL" Default="" Mode="" Description="Required for uploads: URL that the Unraid host can fetch, e.g. http://192.168.1.10:8787" Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Maximum wallpaper bytes" Target="MAX_WALLPAPER_BYTES" Default="31457280" Mode="" Description="Maximum uploaded or downloaded wallpaper size, default 30 MiB" Type="Variable" Display="advanced" Required="true" Mask="false">31457280</Config>
+  <Config Name="Icon gallery quota" Target="MAX_ICON_GALLERY_BYTES" Default="524288000" Mode="" Description="Maximum total icon gallery storage, default 500 MiB" Type="Variable" Display="advanced" Required="true" Mask="false">524288000</Config>
+  <Config Name="Wallpaper gallery quota" Target="MAX_WALLPAPER_GALLERY_BYTES" Default="2147483648" Mode="" Description="Maximum total wallpaper gallery storage, default 2 GiB" Type="Variable" Display="advanced" Required="true" Mask="false">2147483648</Config>
+  <Config Name="Maximum mutation queue" Target="MAX_MUTATION_QUEUE" Default="20" Mode="" Description="Maximum queued icon/refresh mutations; excess requests receive HTTP 429" Type="Variable" Display="advanced" Required="true" Mask="false">20</Config>
   <Config Name="Unraid Docker page URL" Target="UNRAID_DOCKER_URL" Default="" Mode="" Description="URL opened by Refresh Docker Page, e.g. http://192.168.1.10/Docker or your custom port" Type="Variable" Display="advanced" Required="true" Mask="false"/>
   <Config Name="Unraid VM page URL" Target="UNRAID_VM_URL" Default="" Mode="" Description="URL opened after changing a VM icon, e.g. http://192.168.1.10/VMs" Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="libvirt URI" Target="LIBVIRT_URI" Default="qemu+unix:///system?socket=/var/run/libvirt/libvirt-sock" Mode="" Description="libvirt connection URI; normally do not change" Type="Variable" Display="advanced" Required="false" Mask="false">qemu+unix:///system?socket=/var/run/libvirt/libvirt-sock</Config>

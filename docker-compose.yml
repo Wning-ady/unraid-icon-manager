@@ -1,6 +1,6 @@
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:latest
+    image: waning/unraid-icon-manager:v0.1.22
     container_name: unraid-icon-manager
 
     ports:
@@ -8,6 +8,10 @@ services:
 
     environment:
       - TZ=Asia/Shanghai
+      # 必填：替换为至少 24 位的随机字符串；它不会被写入数据库或日志。
+      - ADMIN_TOKEN=CHANGE_ME_USE_A_RANDOM_32_CHARACTER_TOKEN
+      # 默认仅放行 RFC1918 局域网和本机；若 LAN 网段更严格，可缩小为例如 192.168.2.0/24。
+      - TRUSTED_NETWORKS=127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
       - ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
       - WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
       - ICON_CACHE_DIR=/unraid/icon-cache
@@ -16,6 +20,9 @@ services:
       - COMPOSE_HOST_ROOT=/mnt/user/docker
       - MAX_UPLOAD_BYTES=5242880
       - MAX_WALLPAPER_BYTES=31457280
+      - MAX_ICON_GALLERY_BYTES=524288000
+      - MAX_WALLPAPER_GALLERY_BYTES=2147483648
+      - MAX_MUTATION_QUEUE=20
       # 部署前把 192.168.1.10 改成你的 Unraid IP；不能填写 localhost。
       - PUBLIC_BASE_URL=http://192.168.1.10:8787
       # 如果 Unraid WebGUI 不是 5000 端口，请直接修改这里。
@@ -43,5 +50,20 @@ services:
 
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: 1.0
+
+    networks:
+      - icon-manager
 
     restart: unless-stopped
+
+networks:
+  icon-manager:
+    driver: bridge

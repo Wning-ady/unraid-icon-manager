@@ -2,6 +2,7 @@ import { constants, createReadStream, existsSync, readFileSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { join } from "node:path";
 import Fastify from "fastify";
+import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import type { AppConfig, UiSettings } from "./types.js";
 import { AppDatabase } from "./database.js";
@@ -14,6 +15,7 @@ import { deleteWallpaper, listWallpaperFiles, storeWallpaper, wallpaperPath } fr
 import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
 import { synchronizeContainerIcon } from "./container-sync-service.js";
 import { listVirtualMachines, updateVirtualMachineIcon } from "./vm-service.js";
+import { AccessControl } from "./security.js";
 
 function stringArray(value: unknown, label: string): string[] {
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error(`${label} must be a string array`);
@@ -52,29 +54,64 @@ function ownIconFile(config: AppConfig, value: string): string | null {
 export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage; synchronizeContainerIcon?: typeof synchronizeContainerIcon } = {}) {
   const bodyBytes = Math.max(config.maxUploadBytes, config.maxWallpaperBytes ?? config.maxUploadBytes);
   const app = Fastify({ logger: true, bodyLimit: Math.ceil(bodyBytes * 4 / 3) + 16_384 });
+  const access = new AccessControl(config);
+  void app.register(fastifyRateLimit, { global: true, max: 300, timeWindow: "1 minute", ban: 2 });
   const database = new AppDatabase(config);
   const clientRoot = join(process.cwd(), "dist/client");
   const listContainers = dependencies.listManagedContainers ?? listManagedContainers;
   const downloadImage = dependencies.downloadRemoteImage ?? downloadRemoteImage;
   const syncIcon = dependencies.synchronizeContainerIcon ?? synchronizeContainerIcon;
   let iconMutationTail = Promise.resolve();
+  let queuedMutations = 0;
   async function withIconMutation<T>(operation: () => Promise<T>): Promise<T> {
+    if (queuedMutations >= (config.maxMutationQueue ?? 20)) {
+      const error = new Error("操作队列已满，请等待当前图标同步完成后重试") as Error & { statusCode: number };
+      error.statusCode = 429;
+      throw error;
+    }
+    queuedMutations += 1;
     const previous = iconMutationTail;
     let release!: () => void;
     iconMutationTail = new Promise<void>((resolve) => { release = resolve; });
     await previous;
-    try { return await operation(); } finally { release(); }
+    try { return await operation(); } finally { queuedMutations -= 1; release(); }
   }
   let appVersion = "dev";
   try { appVersion = (JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version?: string }).version ?? appVersion; } catch { /* Development fallback. */ }
 
   app.addHook("onClose", () => database.close());
-  app.get("/api/health", async () => ({
-    ok: true,
-    templatesDir: config.templatesDir,
-    templatesWritable: existsSync(config.templatesDir),
-    iconCachesMounted: Boolean(config.iconCacheDir && config.iconCacheRamDir && existsSync(config.iconCacheDir) && existsSync(config.iconCacheRamDir))
-  }));
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-frame-options", "DENY");
+    reply.header("referrer-policy", "no-referrer");
+    reply.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+    reply.header("content-security-policy", "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'");
+    if (!access.isTrusted(request)) return reply.code(403).send({ message: "此服务仅允许受信任的局域网访问" });
+    const pathname = request.url.split("?", 1)[0];
+    const publicApi = pathname === "/api/health" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/icons/file/") || pathname.startsWith("/api/wallpapers/file/");
+    if (pathname.startsWith("/api/") && !publicApi && !access.authenticated(request)) return reply.code(401).send({ message: "请先登录管理界面" });
+    if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method) && pathname !== "/api/auth/login" && !access.csrfValid(request)) {
+      return reply.code(403).send({ message: "安全校验失败，请刷新页面后重试" });
+    }
+  });
+  app.get("/api/health", async () => ({ ok: true, version: appVersion }));
+  app.get("/api/auth/session", async (request) => access.session(request));
+  app.post("/api/auth/login", { config: { rateLimit: { max: 5, timeWindow: "1 minute" } } }, async (request, reply) => {
+    const token = (request.body as { token?: unknown })?.token;
+    if (typeof token !== "string") return reply.code(400).send({ message: "管理员令牌不能为空" });
+    const session = access.login(token);
+    if (!session) return reply.code(401).send({ message: "管理员令牌无效" });
+    const secure = request.protocol === "https" ? "; Secure" : "";
+    const names = access.cookieNames();
+    reply.header("set-cookie", [`${names.sessionCookie}=${session.session}; Path=/; HttpOnly; SameSite=Strict; Max-Age=43200${secure}`, `${names.csrfCookie}=${session.csrf}; Path=/; SameSite=Strict; Max-Age=43200${secure}`]);
+    return { ok: true, csrf: session.csrf };
+  });
+  app.post("/api/auth/logout", async (request, reply) => {
+    access.logout(request);
+    const names = access.cookieNames();
+    reply.header("set-cookie", [`${names.sessionCookie}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`, `${names.csrfCookie}=; Path=/; SameSite=Strict; Max-Age=0`]);
+    return { ok: true };
+  });
   app.get("/api/about", async () => ({ version: appVersion, githubUrl: "https://github.com/Wning-ady/unraid-icon-manager",
     iconHostRoot: config.iconHostRoot, iconContainerRoot: "/config/icons",
     wallpaperHostRoot: config.wallpaperHostRoot ?? join(config.configDir, "wallpapers"), wallpaperContainerRoot: "/config/wallpapers" }));
@@ -150,7 +187,11 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       return reply.header("cache-control", "no-cache").type("image/png").send(createReadStream(cachePath));
     } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
   });
-  app.get("/api/audits", async () => database.listAudits());
+  app.get("/api/audits", async () => database.listAudits().map(({ backupFile, cacheBackup, ...audit }) => {
+    // Keep sensitive host backup locations server-side; they are only used by the restore route.
+    void backupFile; void cacheBackup;
+    return audit;
+  }));
 
   app.post("/api/icons/upload", async (request, reply) => {
     try {

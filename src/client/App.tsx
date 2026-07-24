@@ -1,5 +1,7 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
+let csrfToken = "";
+
 interface Container {
   name: string;
   id: string;
@@ -88,12 +90,18 @@ function ModalIconGallery({ assets, groups, value, onSelect }: { assets: StoredI
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, { headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, ...init });
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers: Record<string, string> = { "content-type": "application/json", ...((init?.headers as Record<string, string> | undefined) ?? {}) };
+  if (["POST", "PATCH", "PUT", "DELETE"].includes(method) && csrfToken) headers["x-csrf-token"] = csrfToken;
+  const response = await fetch(path, { credentials: "same-origin", headers, ...init });
   if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message ?? `Request failed (${response.status})`); }
   return response.status === 204 ? undefined as T : response.json() as Promise<T>;
 }
 
 export function App() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [loginToken, setLoginToken] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [containers, setContainers] = useState<Container[]>([]);
   const [vms, setVms] = useState<VirtualMachine[]>([]);
   const [libvirtAvailable, setLibvirtAvailable] = useState<boolean | null>(null);
@@ -151,7 +159,14 @@ export function App() {
       setNotice(message ?? (containerData.dockerAvailable ? `已读取 ${containerData.containers.length} 个当前 Docker 容器；点击任意容器即可设置图标。` : "Docker socket 不可用，因此无法读取当前已部署容器。"));
     } catch (error) { setNotice(`加载失败：${error instanceof Error ? error.message : "未知错误"}`); }
   };
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void request<{ authenticated: boolean; csrf?: string }>("/api/auth/session").then((session) => {
+      csrfToken = session.csrf ?? "";
+      setAuthenticated(session.authenticated);
+      if (session.authenticated) void refresh();
+      else setNotice("请使用管理员令牌登录。");
+    }).catch((error) => { setAuthenticated(false); setLoginError(error instanceof Error ? error.message : "无法检查登录状态"); });
+  }, []);
 
   const activeWallpaper = wallpapers.find((asset) => asset.fileName === activeWallpaperFileName) ?? null;
   useEffect(() => {
@@ -366,13 +381,29 @@ export function App() {
     catch (error) { setNotice(`恢复失败：${error instanceof Error ? error.message : "未知错误"}`); }
   }
 
+  async function login() {
+    setBusy(true); setLoginError("");
+    try {
+      const result = await request<{ csrf: string }>("/api/auth/login", { method: "POST", body: JSON.stringify({ token: loginToken }) });
+      csrfToken = result.csrf; setLoginToken(""); setAuthenticated(true); await refresh("已安全登录管理界面。");
+    } catch (error) { setLoginError(error instanceof Error ? error.message : "登录失败"); }
+    finally { setBusy(false); }
+  }
+
+  async function logout() {
+    try { await request("/api/auth/logout", { method: "POST", body: "{}" }); }
+    finally { csrfToken = ""; setAuthenticated(false); }
+  }
+
+  if (authenticated !== true) return <main className="login-page"><section className="login-card"><img className="about-logo" src="/project-icon.png" alt="Unraid Icon Manager" /><p className="eyebrow">TRUSTED LAN · ADMIN ACCESS</p><h1>{authenticated === null ? "正在检查访问权限…" : "管理员登录"}</h1>{authenticated === false && <><p>此工具可访问 Docker、Unraid 模板和可选的 libvirt socket。请使用部署时设置的 <code>ADMIN_TOKEN</code> 登录。</p><input type="password" autoComplete="current-password" aria-label="管理员令牌" value={loginToken} onChange={(event) => setLoginToken(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void login(); }} placeholder="ADMIN_TOKEN" /><button disabled={busy || !loginToken} onClick={() => void login()}>{busy ? "正在验证…" : "安全登录"}</button>{loginError && <p className="login-error" role="alert">{loginError}</p>}</>}</section></main>;
+
   return <div className="app-shell">
     <div className="wallpaper-backdrop" aria-hidden="true" />
     <aside className="sidebar">
       <button className="brand" onClick={() => setPage("dashboard")} aria-label="回到容器总览"><img className="brand-mark" src="/project-icon.png" alt="" /><span><b>Icon Manager</b><small>for Unraid</small></span></button>
       <nav aria-label="主导航"><button className={page === "dashboard" ? "nav-item active" : "nav-item"} onClick={() => setPage("dashboard")}><span>▦</span> 容器图标</button><button className={page === "vms" ? "nav-item active" : "nav-item"} onClick={() => setPage("vms")}><span>◇</span> 虚拟机图标</button><button className={page === "gallery" ? "nav-item active" : "nav-item"} onClick={() => setPage("gallery")}><span>▧</span> 图标图库</button><button className={page === "wallpapers" ? "nav-item active" : "nav-item"} onClick={() => setPage("wallpapers")}><span>▤</span> 壁纸图库</button><button className="nav-item" onClick={() => { setPage("dashboard"); window.setTimeout(() => document.getElementById("audit-history")?.scrollIntoView({ behavior: "smooth" }), 0); }}><span>≡</span> 变更记录</button><button className={page === "about" ? "nav-item active" : "nav-item"} onClick={() => setPage("about")}><span>♡</span> 关于项目</button></nav>
       <section className="appearance-panel" aria-label="外观设置"><div className="appearance-row"><span>界面主题</span><div className="theme-switch" role="group" aria-label="日间或夜间模式"><button className={theme === "light" ? "active" : ""} aria-label="切换到日间模式" aria-pressed={theme === "light"} title="日间模式" onClick={() => void updateUiSettings({ theme: "light" }, "已切换到日间模式。")}>☀</button><button className={theme === "dark" ? "active" : ""} aria-label="切换到夜间模式" aria-pressed={theme === "dark"} title="夜间模式" onClick={() => void updateUiSettings({ theme: "dark" }, "已切换到夜间模式。")}>☾</button></div></div><label className="glass-control"><span><b>界面透明度</b><output>{surfaceOpacity}%</output></span><input type="range" min="0" max="100" step="1" value={surfaceOpacity} aria-label="界面色块透明度" onChange={(event) => setSurfaceOpacity(Number(event.target.value))} onPointerUp={(event) => void updateUiSettings({ surfaceOpacity: Number(event.currentTarget.value) }, "界面透明度已保存。") } onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) void updateUiSettings({ surfaceOpacity: Number(event.currentTarget.value) }, "界面透明度已保存。"); }} /></label>{activeWallpaper && <button className="clear-wallpaper" onClick={() => void updateUiSettings({ wallpaperFileName: null }, "已恢复默认背景。")}>移除当前壁纸</button>}</section>
-      <div className="sidebar-footer"><span className={dockerAvailable === false ? "online-dot offline" : "online-dot"} /> {dockerAvailable === null ? "正在连接 Docker Manager" : dockerAvailable ? "Docker Manager 已连接" : "Docker Manager 未连接"}<br /><small>v{about.version} · 同步时仅重建所选容器</small></div>
+      <div className="sidebar-footer"><span className={dockerAvailable === false ? "online-dot offline" : "online-dot"} /> {dockerAvailable === null ? "正在连接 Docker Manager" : dockerAvailable ? "Docker Manager 已连接" : "Docker Manager 未连接"}<br /><small>v{about.version} · 同步时仅重建所选容器</small><button className="logout-button" onClick={() => void logout()}>退出登录</button></div>
     </aside>
     <main className="workspace">
       <header className="topbar"><div><p className="eyebrow">{page === "dashboard" ? "DOCKER MANAGEMENT" : page === "vms" ? "VIRTUAL MACHINE MANAGEMENT" : "UNRAID ICON MANAGER"}</p><h1>{page === "dashboard" ? "容器图标总览" : page === "vms" ? "虚拟机图标总览" : page === "gallery" ? "图标图库" : page === "wallpapers" ? "壁纸图库" : "关于项目"}</h1></div>{(page === "dashboard" || page === "vms") && <div className="topbar-actions">{page === "dashboard" && <span className="summary"><b>{linkedCount}</b> 个已有模板</span>}<button className="secondary" onClick={() => void refresh()}>↻ 刷新列表</button></div>}</header>

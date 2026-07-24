@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.22
+
+- Require an `ADMIN_TOKEN` in every production deployment, add secure browser sessions, same-origin CSRF validation, trusted-LAN CIDR enforcement, login throttling and hardened response headers. Stable hash-addressed icon and wallpaper file URLs remain available to Unraid.
+- Upgrade Sharp to 0.35.3 and `find-my-way` to 9.7.0, block unneeded GIF/TIFF/VIPS image loaders, reject remote GIF/TIFF assets, bound gallery listing work, add persistent gallery quotas and cap queued mutations.
+- Remove internal mount and backup paths from public health/audit responses; health now exposes only `ok` and version.
+- Harden Compose and Unraid deployment defaults with a healthcheck, no Linux capabilities, read-only root filesystem, restricted `/tmp`, CPU/memory/PID limits, a dedicated Compose network, a pinned release tag and CI production-dependency auditing.
+
 ## 0.1.21
 
 - Fix Unraid 7 VM icon updates by using the real `http://unraid` libvirt metadata namespace and clean up metadata written by older versions with the wrong namespace.

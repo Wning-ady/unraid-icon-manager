@@ -2,7 +2,7 @@ import { lookup } from "node:dns/promises";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import ipaddr from "ipaddr.js";
-import sharp from "sharp";
+import { openSafeImage } from "./image-security.js";
 
 export function isPublicImageAddress(address: string): boolean {
   try {
@@ -18,9 +18,9 @@ export function isPublicImageAddress(address: string): boolean {
 
 export async function validateRemoteRaster(buffer: Buffer): Promise<void> {
   let format: string | undefined;
-  try { format = (await sharp(buffer, { limitInputPixels: 80_000_000 }).metadata()).format; }
+  try { format = (await openSafeImage(buffer, 80_000_000).metadata()).format; }
   catch { throw new Error("远程地址没有返回有效图片"); }
-  if (!format || !["png", "jpeg", "webp", "gif"].includes(format)) throw new Error("远程图片只支持 PNG、JPEG、WebP 或 GIF，不接受远程 SVG");
+  if (!format || !["png", "jpeg", "webp"].includes(format)) throw new Error("远程图片只支持 PNG、JPEG 或 WebP，不接受远程 SVG、GIF 或 TIFF");
 }
 
 async function target(url: URL, deadline: number): Promise<{ address: string; family: 4 | 6 }> {
@@ -47,7 +47,7 @@ async function requestOnce(url: URL, maxBytes: number, deadline: number): Promis
     };
     const requester = url.protocol === "https:" ? httpsRequest : httpRequest;
     const req = requester(url, {
-      headers: { accept: "image/png,image/jpeg,image/webp,image/gif,*/*;q=0.1", "accept-encoding": "identity", "user-agent": "unraid-icon-manager/0.1" },
+      headers: { accept: "image/png,image/jpeg,image/webp,*/*;q=0.1", "accept-encoding": "identity", "user-agent": "unraid-icon-manager/0.1" },
       lookup: (_hostname, options, callback) => {
         if (typeof options === "object" && options.all) {
           (callback as (error: null, addresses: Array<{ address: string; family: 4 | 6 }>) => void)(null, [resolved]);
@@ -89,7 +89,7 @@ export async function downloadRemoteImage(rawUrl: string, maxBytes: number): Pro
     const result = await requestOnce(url, maxBytes, deadline);
     if (!result.location) {
       if (!result.body?.length) throw new Error("远程图片为空");
-      if (result.contentType && !["image/png", "image/jpeg", "image/webp", "image/gif", "application/octet-stream"].includes(result.contentType)) {
+      if (result.contentType && !["image/png", "image/jpeg", "image/webp", "application/octet-stream"].includes(result.contentType)) {
         throw new Error(`远程地址不是支持的图片类型：${result.contentType}`);
       }
       await validateRemoteRaster(result.body);
