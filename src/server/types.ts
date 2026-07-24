@@ -12,6 +12,13 @@ export interface AppConfig {
   backupsDir: string;
   maxUploadBytes: number;
   maxWallpaperBytes?: number;
+  /** Upper bounds for persistent galleries; protects the Unraid appdata share. */
+  maxIconGalleryBytes?: number;
+  maxWallpaperGalleryBytes?: number;
+  maxMutationQueue?: number;
+  /** Required in production; optional only for direct unit-test app construction. */
+  adminToken?: string;
+  trustedNetworks?: string[];
   /** Host Docker Manager's persistent and RAM icon caches, mounted read/write. */
   iconCacheDir?: string;
   iconCacheRamDir?: string;

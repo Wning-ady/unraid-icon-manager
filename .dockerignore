@@ -3,4 +3,7 @@ dist
 .git
 config
 coverage
+.env
+.env.*
+!.env.example
 npm-debug.log

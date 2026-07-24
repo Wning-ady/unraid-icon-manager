@@ -25,7 +25,7 @@
 通过轻量级、自托管 Web 管理界面批量管理**当前已部署** Unraid Docker 容器的图标。保存图标时只更新模板、图库和缓存；点击**同步到 Unraid**后，工具会为所选容器持久化 `net.unraid.docker.icon`，并只重建这些容器，使 Docker Manager 与 Compose Manager 都使用新图标。
 
 > [!WARNING]
-> 本服务只能放在可信局域网。它需要 Docker socket；启用 VM 图标时还需要读写 libvirt socket，该 socket 等同完整虚拟机管理权限。不要把服务端口、反向代理或未认证入口暴露到公网。
+> 本服务只能放在可信局域网。它需要 Docker socket；启用 VM 图标时还需要读写 libvirt socket，该 socket 等同完整虚拟机管理权限。`v0.1.22` 起生产启动必须设置 `ADMIN_TOKEN`，管理 API 需要登录与同源安全校验。不要把服务端口或反向代理暴露到公网。
 
 ## 功能
 
@@ -76,6 +76,8 @@ docker pull waning/unraid-icon-manager:latest
 | `UNRAID_VM_URL` | `http://192.168.1.10:5000/VMs` | 修改 VM 图标后打开的 Unraid VM 页面。 |
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | 对应 `/config/icons` 的主机路径；移动 appdata 时一同修改。 |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager 的 `PROJECTS_FOLDER`；用于写回所选服务的 override。 |
+| `ADMIN_TOKEN` | 随机 24 位以上字符串 | **必填**。首次打开 Web UI 时输入；不写入数据库和日志。可用 `openssl rand -base64 36` 生成。 |
+| `TRUSTED_NETWORKS` | `192.168.0.0/16` 等 RFC1918 网段 | 建议缩小为你的 LAN，例如 `192.168.2.0/24`；不在范围内的连接会被拒绝。 |
 
 启动后访问 `http://你的_UNRAID_IP:8787`。也可将 [`unraid/template.xml`](unraid/template.xml) 复制到 `/boot/config/plugins/dockerMan/templates-user/`，在 **Add Container** 中选择 **unraid-icon-manager**，并在应用前填写两个 URL 变量。
 
@@ -86,7 +88,7 @@ docker pull waning/unraid-icon-manager:latest
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:latest
+    image: waning/unraid-icon-manager:v0.1.22
     container_name: unraid-icon-manager
 
     ports:
@@ -94,6 +96,10 @@ services:
 
     environment:
       - TZ=Asia/Shanghai
+      # 必填：改成你自己的随机值（至少 24 位），不要保留 CHANGE_ME。
+      - ADMIN_TOKEN=CHANGE_ME_USE_A_RANDOM_32_CHARACTER_TOKEN
+      # 可收紧为你的实际 LAN，例如 192.168.2.0/24。
+      - TRUSTED_NETWORKS=127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
       - ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
       - WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
       - ICON_CACHE_DIR=/unraid/icon-cache
@@ -102,6 +108,9 @@ services:
       - COMPOSE_HOST_ROOT=/mnt/user/docker
       - MAX_UPLOAD_BYTES=5242880
       - MAX_WALLPAPER_BYTES=31457280
+      - MAX_ICON_GALLERY_BYTES=524288000
+      - MAX_WALLPAPER_GALLERY_BYTES=2147483648
+      - MAX_MUTATION_QUEUE=20
       # 部署前把 192.168.1.10 改成你的 Unraid IP；不能填写 localhost。
       - PUBLIC_BASE_URL=http://192.168.1.10:8787
       # 如果 Unraid WebGUI 不是 5000 端口，请直接修改这里。
@@ -129,8 +138,22 @@ services:
 
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: 1.0
+    networks:
+      - icon-manager
 
     restart: unless-stopped
+
+networks:
+  icon-manager:
+    driver: bridge
 ```
 
 所有参数都直接写在 Compose 中，不需要创建其他文件。确认 IP、端口和路径后，先检查配置，再启动：
@@ -147,7 +170,7 @@ docker compose up -d
 curl http://你的_UNRAID_IP:8787/api/health
 ```
 
-正常结果中，`ok`、`templatesWritable` 和 `iconCachesMounted` 都应为 `true`。
+正常结果为 `{ "ok": true, "version": "0.1.22" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
 
 #### Compose 服务字段逐项说明
 
@@ -167,11 +190,16 @@ curl http://你的_UNRAID_IP:8787/api/health
 | 参数 | 默认/示例 | 是否必填 | 作用 |
 | --- | --- | --- | --- |
 | `TZ` | `Asia/Shanghai` | 否 | 容器时区，影响界面与日志中的本地时间显示。 |
+| `ADMIN_TOKEN` | 自行生成的随机长字符串 | **是** | 管理员登录令牌，至少 24 个字符；可用 `openssl rand -base64 36` 生成。绝不能使用示例 `CHANGE_ME`，也不要提交到公开仓库。 |
+| `TRUSTED_NETWORKS` | RFC1918 + loopback | **是** | 允许访问本服务的逗号分隔 CIDR。建议缩小至实际管理网段；Fastify 不信任可伪造的 `X-Forwarded-For`。 |
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | 是 | `/config/icons` 在 Unraid 主机上的对应路径。修改 `/config` 的主机挂载时，必须同步修改。 |
 | `WALLPAPER_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/wallpapers` | 是 | `/config/wallpapers` 在 Unraid 主机上的对应路径，用于复制正确的宿主机路径。 |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager 用户是 | Compose Manager 插件设置中的 `PROJECTS_FOLDER`。不是该目录时必须修改，否则 Compose 图标不能持久化。 |
 | `MAX_UPLOAD_BYTES` | `5242880` | 否 | 单个上传文件的最大字节数，默认 `5 MiB`。过大的 PNG、SVG 或 WebP 会被拒绝。 |
 | `MAX_WALLPAPER_BYTES` | `31457280` | 否 | 单张上传或 URL 下载壁纸的最大字节数，默认 `30 MiB`。 |
+| `MAX_ICON_GALLERY_BYTES` | `524288000` | 否 | 图标图库总配额，默认 `500 MiB`。达到上限须删除未使用素材后再上传。 |
+| `MAX_WALLPAPER_GALLERY_BYTES` | `2147483648` | 否 | 壁纸图库总配额，默认 `2 GiB`。 |
+| `MAX_MUTATION_QUEUE` | `20` | 否 | 排队中的图标写入/同步数量上限；超出会返回 HTTP 429，避免大量重建请求堆积。 |
 | `PUBLIC_BASE_URL` | `http://192.168.1.10:8787` | **是** | 写入 Unraid 模板的图标服务根地址，必须从 Unraid 主机自身可访问。不能填容器内部地址或 `localhost`；端口必须与 `ports` 左侧的主机端口一致。 |
 | `UNRAID_DOCKER_URL` | `http://192.168.1.10:5000/Docker` | **是** | 点击**刷新 Docker 页面**时打开的地址。若 Unraid WebGUI 使用自定义端口，必须把端口写完整。 |
 | `UNRAID_VM_URL` | `http://192.168.1.10:5000/VMs` | VM 用户是 | 修改 VM 图标后打开的页面。 |
@@ -218,7 +246,7 @@ docker compose up -d --no-deps unraid-icon-manager
 ```
 
 - 不要为了升级本工具执行会影响其他服务的 `docker compose down`。Unraid 图形界面安装时，也只更新 `unraid-icon-manager` 的镜像标签。
-- 升级后检查 `http://你的地址/api/health` 中 `templatesWritable` 与 `iconCachesMounted` 是否都是 `true`，并通过 `/api/about` 核对版本。
+- 升级后检查 `http://你的地址/api/health` 返回的 `ok` 和版本，并登录 Web UI 确认 Docker/模板/VM 连接状态。首次升级到 `0.1.22` 需要新增 `ADMIN_TOKEN`；未填写时容器会安全地拒绝启动。
 - 从**最近变更**回滚单项图标并再次点击同步。如需回退本工具版本，选择旧镜像标签，同时保留 `/config` 和所需挂载。
 
 ## 本地开发与测试

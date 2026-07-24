@@ -186,6 +186,15 @@ small, .section-title span { color: #7f8ca1; }
 .wallpaper-item .gallery-item-actions { padding: 0 .72rem .72rem; }
 .download-button { padding: .48rem; border-radius: 9px; color: #fff; background: #1769e0; font-size: .7rem; font-weight: 720; text-decoration: none; }
 .about-logo { width: 82px; height: 82px; margin-bottom: 1rem; border-radius: 20px; box-shadow: 0 14px 30px #0006; }
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: radial-gradient(circle at 15% 10%, #2d6da833, transparent 36%), #101d2d; }
+.login-card { width: min(100%, 430px); display: grid; gap: .85rem; padding: 2.2rem; border: 1px solid #ffffff26; border-radius: 22px; background: #10243ee8; color: #eaf4ff; box-shadow: 0 28px 80px #0008; }
+.login-card h1 { margin: 0; font-size: 1.8rem; }
+.login-card p { margin: 0; color: #bed0e2; line-height: 1.65; }
+.login-card input { width: 100%; box-sizing: border-box; padding: .78rem .9rem; border: 1px solid #6685a4; border-radius: 10px; background: #091727; color: #fff; }
+.login-card button { padding: .78rem 1rem; border: 0; border-radius: 10px; background: #49b5d8; color: #062238; font-weight: 700; cursor: pointer; }
+.login-card button:disabled { opacity: .55; cursor: wait; }
+.login-error { color: #ffb9b9 !important; }
+.logout-button { display: block; margin-top: .7rem; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; opacity: .8; cursor: pointer; }
 
 .audit-history { margin-top: 1.2rem; }
 .audit-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); gap: .65rem; }

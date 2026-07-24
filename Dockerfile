@@ -16,4 +16,5 @@ COPY --from=build /app/dist ./dist
 RUN mkdir -p /config /unraid/templates-user
 EXPOSE 8787
 VOLUME ["/config"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
 CMD ["node", "dist/server/server.js"]
