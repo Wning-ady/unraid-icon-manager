@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.24
+
+- Upgrade `@fastify/static` to 10.1.2 and refresh `brace-expansion` to 5.0.8 to resolve the reported high-severity dependency findings.
+- Production dependency audit now reports zero vulnerabilities.
+
 ## 0.1.23
 
 - Fix VM icon availability after Unraid reboots by mounting the libvirt runtime directory instead of a socket file that may not exist during Docker startup.
