@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.23
+
+- Fix VM icon availability after Unraid reboots by mounting the libvirt runtime directory instead of a socket file that may not exist during Docker startup.
+- Resolve the configured libvirt socket from `LIBVIRT_URI` and verify that it is an actual Unix socket before listing VMs.
+- Update the XML template, Compose example, and deployment documentation with the reboot-safe mount.
+
 ## 0.1.22
 
 - Require an `ADMIN_TOKEN` in every production deployment, add secure browser sessions, same-origin CSRF validation, trusted-LAN CIDR enforcement, login throttling and hardened response headers. Stable hash-addressed icon and wallpaper file URLs remain available to Unraid.

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>unraid-icon-manager</Name>
-  <Repository>waning/unraid-icon-manager:v0.1.22</Repository>
+  <Repository>waning/unraid-icon-manager:v0.1.23</Repository>
   <Registry>https://hub.docker.com/r/waning/unraid-icon-manager</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -30,7 +30,7 @@
   <Config Name="Compose Manager projects" Target="/unraid/compose-projects" Default="/mnt/user/docker" Mode="rw" Description="Compose Manager PROJECTS_FOLDER; used only to update the selected service icon in docker-compose.override.yml" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/docker</Config>
   <Config Name="Docker socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Reads containers and recreates only explicitly synchronized targets so immutable icon labels update" Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
   <Config Name="VM icon directory" Target="/unraid/vm-icons" Default="" Mode="rw" Description="Optional: fill only when Unraid VM Manager is enabled" Type="Path" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="libvirt socket" Target="/var/run/libvirt/libvirt-sock" Default="" Mode="rw" Description="Optional: fill only when VM Manager is enabled; grants full VM management authority" Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="libvirt runtime directory" Target="/var/run/libvirt" Default="/var/run/libvirt" Mode="rw" Description="Optional: mount the whole runtime directory so the socket can be recreated after Unraid restarts; grants full VM management authority" Type="Path" Display="advanced" Required="false" Mask="false">/var/run/libvirt</Config>
   <Config Name="Icon host path" Target="ICON_HOST_ROOT" Default="/mnt/user/appdata/unraid-icon-manager/icons" Mode="" Description="Host-side location matching /config/icons; uploads are served through the public URL below" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager/icons</Config>
   <Config Name="Wallpaper host path" Target="WALLPAPER_HOST_ROOT" Default="/mnt/user/appdata/unraid-icon-manager/wallpapers" Mode="" Description="Host-side location matching /config/wallpapers" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager/wallpapers</Config>
   <Config Name="Compose Manager host root" Target="COMPOSE_HOST_ROOT" Default="/mnt/user/docker" Mode="" Description="Host path used in com.docker.compose.project.working_dir labels; must match the Compose Manager PROJECTS_FOLDER mount above" Type="Variable" Display="advanced" Required="true" Mask="false">/mnt/user/docker</Config>

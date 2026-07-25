@@ -1,6 +1,6 @@
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.22
+    image: waning/unraid-icon-manager:v0.1.23
     container_name: unraid-icon-manager
 
     ports:
@@ -44,9 +44,10 @@ services:
       # 读取容器信息；显式同步时会通过 Docker API 重建所选容器。
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # VM 图标（可选）：仅在 Unraid VM Manager 已启用时取消下面两行注释。
-      # RW libvirt socket 等同完整 VM 管理权限，只能在可信局域网使用。
+      # 挂载整个运行目录，避免 Unraid 重启时 socket 尚未出现而被 Docker 建成目录。
+      # RW libvirt 运行目录等同完整 VM 管理权限，只能在可信局域网使用。
       # - /usr/local/emhttp/plugins/dynamix.vm.manager/templates/images:/unraid/vm-icons
-      # - /var/run/libvirt/libvirt-sock:/var/run/libvirt/libvirt-sock
+      # - /var/run/libvirt:/var/run/libvirt
 
     security_opt:
       - no-new-privileges:true

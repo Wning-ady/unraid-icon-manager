@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseVmDomainXml, replaceVmMetadataIcon, UNRAID_VM_METADATA_URI } from "../src/server/vm-service.ts";
+import { parseVmDomainXml, replaceVmMetadataIcon, resolveLibvirtSocketPath, UNRAID_VM_METADATA_URI } from "../src/server/vm-service.ts";
 
 test("uses the namespace required by Unraid 7", () => {
   assert.equal(UNRAID_VM_METADATA_URI, "http://unraid");
+});
+
+test("resolves the socket from the configured libvirt URI", () => {
+  assert.equal(resolveLibvirtSocketPath("qemu+unix:///system?socket=/run/custom/libvirt.sock"), "/run/custom/libvirt.sock");
+  assert.equal(resolveLibvirtSocketPath(), "/var/run/libvirt/libvirt-sock");
 });
 
 test("reads Unraid vmtemplate icon metadata", () => {

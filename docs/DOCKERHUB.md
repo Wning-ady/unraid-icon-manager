@@ -37,9 +37,11 @@ Unraid Icon Manager 是一个面向 Unraid 的自托管 Web 图标管理器。
 
 ## 拉取镜像
 
+启用 VM 图标时挂载整个 `/var/run/libvirt` 运行目录，不要单独映射 socket 文件；这样 Unraid 重启后 libvirt 重新创建 socket 时，容器仍能看到它。
+
 ```bash
 docker pull waning/unraid-icon-manager:latest
-docker pull waning/unraid-icon-manager:v0.1.22
+docker pull waning/unraid-icon-manager:v0.1.23
 ```
 
 镜像支持 `linux/amd64` 与 `linux/arm64`。
@@ -55,7 +57,7 @@ docker pull waning/unraid-icon-manager:v0.1.22
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.22
+    image: waning/unraid-icon-manager:v0.1.23
     container_name: unraid-icon-manager
 
     ports:
@@ -99,9 +101,10 @@ services:
       # :ro 不会限制 Docker API 权限。
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # 可选 VM 图标功能；仅在 VM Manager 已启用时取消注释。
-      # libvirt socket 具有完整 VM 管理权限。
+      # 挂载整个运行目录，避免 Unraid 重启时 socket 尚未出现而被 Docker 建成目录。
+      # libvirt 运行目录具有完整 VM 管理权限。
       # - /usr/local/emhttp/plugins/dynamix.vm.manager/templates/images:/unraid/vm-icons
-      # - /var/run/libvirt/libvirt-sock:/var/run/libvirt/libvirt-sock
+      # - /var/run/libvirt:/var/run/libvirt
 
     security_opt:
       - no-new-privileges:true
@@ -171,4 +174,3 @@ docker compose up -d --no-deps unraid-icon-manager
 - [安全说明](https://github.com/Wning-ady/unraid-icon-manager/blob/main/SECURITY.md)
 - [问题反馈](https://github.com/Wning-ady/unraid-icon-manager/issues)
 - [Unraid XML 模板](https://raw.githubusercontent.com/Wning-ady/unraid-icon-manager/main/unraid/template.xml)
-
