@@ -51,6 +51,8 @@ Create the container through the Unraid Docker tab with these mappings:
 | `/usr/local/emhttp/state/plugins/dynamix.docker.manager/images` | `/unraid/icon-cache-ram` | Read/write | Back up and update only changed RAM icon files |
 | `/mnt/user/docker` | `/unraid/compose-projects` | Read/write | Atomically update the selected Compose Manager service's icon label in `docker-compose.override.yml` |
 | `/var/run/docker.sock` | `/var/run/docker.sock` | Read-only mount | Read current container details and recreate only explicitly synchronized containers through the Docker API |
+| `/usr/local/emhttp/plugins/dynamix.vm.manager/templates/images` | `/unraid/vm-icons` | Read/write (optional) | Unraid VM Manager icon files |
+| `/var/run/libvirt` | `/var/run/libvirt` | Read/write (optional) | Dynamic libvirt runtime directory; keeps the socket visible after Unraid restarts |
 
 Map TCP port `8787` to a free host port. Then set these required advanced variables with the **actual host-side URLs**:
 
@@ -68,7 +70,7 @@ Open `http://YOUR_UNRAID_IP:8787` after starting. Alternatively, copy [`unraid/t
 
 ### Docker Compose example
 
-The included [`docker-compose.yml`](docker-compose.yml) is completely self-contained and does not use `.env`. Edit all three `192.168.1.10` values directly in the YAML, verify the paths and port, then start it. The final two mounts enable optional VM icon management; the read/write libvirt socket grants full VM-management authority.
+The included [`docker-compose.yml`](docker-compose.yml) is completely self-contained and does not use `.env`. Edit all three `192.168.1.10` values directly in the YAML, verify the paths and port, then start it. The final two mounts enable optional VM icon management; mount the whole `/var/run/libvirt` runtime directory so Unraid can recreate the socket after a reboot. This directory grants full VM-management authority.
 
 ```bash
 docker compose config
@@ -106,10 +108,10 @@ Compose deployment values are written directly in [`docker-compose.yml`](docker-
 
 ## Publishing
 
-Push a tag such as `v0.1.22` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.23` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.22`
+- `waning/unraid-icon-manager:v0.1.23`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.

@@ -29,6 +29,8 @@
 
 ## 功能
 
+启用 VM 图标时请挂载宿主机 `/var/run/libvirt` 整个运行目录到容器同一路径，不要单独映射 `libvirt-sock` 文件。Unraid 重启时 libvirt 可能晚于 Docker 创建 socket；父目录挂载能让新 socket 自动出现在容器内。
+
 - 以当前已部署 Docker 容器为列表来源，而非历史模板文件。
 - 直接显示 Unraid 当前 RAM/持久缓存或明确 `net.unraid.docker.icon` 标签中的实际图标，包括图标不在用户模板内的 Compose 容器。本地标签路径通过配置的 Unraid WebGUI 地址显示，不需要挂载 Compose 项目目录。
 - 每个当前容器都可设置图标：已有匹配模板时更新模板；没有模板时，自动生成带清晰标记和审计记录的专用图标元数据模板，匹配实际容器名与镜像，并避免与现有 `my-*.xml` 文件冲突。
@@ -65,7 +67,7 @@ docker pull waning/unraid-icon-manager:latest
 | `/mnt/user/docker` | `/unraid/compose-projects` | 读写 | 仅原子更新所选 Compose Manager 服务的 `docker-compose.override.yml` 图标标签 |
 | `/var/run/docker.sock` | `/var/run/docker.sock` | 只读挂载 | 读取容器信息；显式同步时只重建所选容器。`:ro` 不限制 Docker API 权限 |
 | `/usr/local/emhttp/plugins/dynamix.vm.manager/templates/images` | `/unraid/vm-icons` | 读写（可选） | VM Manager 图标文件 |
-| `/var/run/libvirt/libvirt-sock` | `/var/run/libvirt/libvirt-sock` | 读写（可选） | 修改 VM 图标 metadata；等同完整 VM 管理权限 |
+| `/var/run/libvirt` | `/var/run/libvirt` | 读写（可选） | 挂载 libvirt 运行目录，让 socket 在 Unraid 重启后重新创建；等同完整 VM 管理权限 |
 
 将 TCP `8787` 映射到空闲主机端口。然后在高级变量中填写**实际主机侧 URL**：
 
@@ -88,7 +90,7 @@ docker pull waning/unraid-icon-manager:latest
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.22
+    image: waning/unraid-icon-manager:v0.1.23
     container_name: unraid-icon-manager
 
     ports:
@@ -131,10 +133,10 @@ services:
       - /mnt/user/docker:/unraid/compose-projects
       # 读取容器信息；显式同步时会通过 Docker API 重建所选容器。
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      # 可选 VM 图标功能；libvirt socket 具有完整 VM 管理权限。
-      # 仅在 Unraid VM Manager 已启用时取消下面两行注释。
+      # 可选 VM 图标功能；挂载整个运行目录，避免重启竞态把 socket 建成目录。
+      # 仅在 Unraid VM Manager 已启用时取消下面两行注释；运行目录具有完整 VM 管理权限。
       # - /usr/local/emhttp/plugins/dynamix.vm.manager/templates/images:/unraid/vm-icons
-      # - /var/run/libvirt/libvirt-sock:/var/run/libvirt/libvirt-sock
+      # - /var/run/libvirt:/var/run/libvirt
 
     security_opt:
       - no-new-privileges:true
@@ -170,7 +172,7 @@ docker compose up -d
 curl http://你的_UNRAID_IP:8787/api/health
 ```
 
-正常结果为 `{ "ok": true, "version": "0.1.22" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
+正常结果为 `{ "ok": true, "version": "0.1.23" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
 
 #### Compose 服务字段逐项说明
 
@@ -219,10 +221,10 @@ Compose 内还有三个固定的容器内环境变量：`ICON_CACHE_DIR=/unraid/
 | `/mnt/user/docker` → `/unraid/compose-projects` | 读写 | Compose Manager 用户是 | 原子备份并更新所选项目 `docker-compose.override.yml` 中所选服务的图标标签；如果插件的 `PROJECTS_FOLDER` 不同，需要同时修改挂载和 `COMPOSE_HOST_ROOT`。 |
 | `/var/run/docker.sock` → `/var/run/docker.sock` | **只读挂载** | 是 | 读取容器信息；只有用户点击同步时才停止、删除并以相同配置重建所选容器。Docker socket 即使标为 `:ro` 仍允许高权限 API 操作。 |
 | `/usr/local/emhttp/plugins/dynamix.vm.manager/templates/images` → `/unraid/vm-icons` | 读写 | VM 用户是 | 保存 Unraid VM Manager 实际显示的自定义图标。 |
-| `/var/run/libvirt/libvirt-sock` → `/var/run/libvirt/libvirt-sock` | **读写** | VM 用户是 | 只修改所选 VM 的 `vmtemplate@icon`，但 socket 本身授予完整 VM 管理权限。 |
+| `/var/run/libvirt` → `/var/run/libvirt` | **读写** | VM 用户是 | 挂载动态运行目录；只修改所选 VM 的 `vmtemplate@icon`，但目录内 socket 授予完整 VM 管理权限。 |
 
 > [!CAUTION]
-> 部署前必须直接修改三个 URL 中的示例 IP。不要填写 `localhost`。Docker socket 与 libvirt socket 都是高权限接口，绝不能把本服务暴露到公网。
+> 部署前必须直接修改三个 URL 中的示例 IP。不要填写 `localhost`。Docker socket 与 libvirt 运行目录都是高权限接口，绝不能把本服务暴露到公网。不要单独映射 `/var/run/libvirt/libvirt-sock`：Unraid 重启时 libvirt 可能晚于 Docker 创建 socket，Docker 会把不存在的源路径建成目录。
 
 ## 使用与恢复
 

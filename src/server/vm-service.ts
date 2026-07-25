@@ -8,6 +8,16 @@ import type { AppConfig, ManagedVirtualMachine } from "./types.js";
 const execFileAsync = promisify(execFile);
 export const UNRAID_VM_METADATA_URI = "http://unraid";
 const LEGACY_VM_METADATA_URI = "unraid";
+export const DEFAULT_LIBVIRT_URI = "qemu+unix:///system?socket=/var/run/libvirt/libvirt-sock";
+
+/** Resolve the Unix socket advertised by libvirt's connection URI. */
+export function resolveLibvirtSocketPath(uri = DEFAULT_LIBVIRT_URI): string {
+  try {
+    const socket = new URL(uri).searchParams.get("socket");
+    if (socket?.startsWith("/")) return socket;
+  } catch { /* Fall back to Unraid's standard socket for malformed/legacy URIs. */ }
+  return "/var/run/libvirt/libvirt-sock";
+}
 
 function decodeXml(value: string): string {
   return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
@@ -34,7 +44,7 @@ export function replaceVmMetadataIcon(metadata: string | null, icon: string, nam
 }
 
 async function virsh(config: AppConfig, args: string[]): Promise<string> {
-  const result = await execFileAsync("virsh", ["-c", config.libvirtUri ?? "qemu+unix:///system?socket=/var/run/libvirt/libvirt-sock", ...args], { timeout: 12_000, maxBuffer: 2 * 1024 * 1024 });
+  const result = await execFileAsync("virsh", ["-c", config.libvirtUri ?? DEFAULT_LIBVIRT_URI, ...args], { timeout: 12_000, maxBuffer: 2 * 1024 * 1024 });
   return result.stdout.trim();
 }
 
@@ -53,7 +63,13 @@ async function copyVmIcon(source: string, target: string): Promise<void> {
 }
 
 export async function listVirtualMachines(config: AppConfig): Promise<{ vms: ManagedVirtualMachine[]; libvirtAvailable: boolean }> {
-  if (!existsSync("/var/run/libvirt/libvirt-sock")) return { vms: [], libvirtAvailable: false };
+  try {
+    if (!(await lstat(resolveLibvirtSocketPath(config.libvirtUri)).then((entry) => entry.isSocket()))) {
+      return { vms: [], libvirtAvailable: false };
+    }
+  } catch {
+    return { vms: [], libvirtAvailable: false };
+  }
   try {
     const names = (await virsh(config, ["list", "--all", "--name"])).split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
     const vms = await Promise.all(names.map(async (domain) => {
