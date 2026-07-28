@@ -91,7 +91,10 @@ function ModalIconGallery({ assets, groups, value, onSelect }: { assets: StoredI
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
-  const headers: Record<string, string> = { "content-type": "application/json", ...((init?.headers as Record<string, string> | undefined) ?? {}) };
+  const headers: Record<string, string> = { ...((init?.headers as Record<string, string> | undefined) ?? {}) };
+  // Fastify rejects an empty request body when it is declared as JSON.  DELETE
+  // endpoints intentionally have no body, so declare JSON only when sending one.
+  if (init?.body != null && !headers["content-type"]) headers["content-type"] = "application/json";
   if (["POST", "PATCH", "PUT", "DELETE"].includes(method) && csrfToken) headers["x-csrf-token"] = csrfToken;
   const response = await fetch(path, { credentials: "same-origin", headers, ...init });
   if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message ?? `Request failed (${response.status})`); }
