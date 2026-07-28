@@ -1,15 +1,5 @@
 # Changelog
 
-## 0.1.26
-
-- Use browser-compatible image request headers so Huaban CDN image downloads no longer return HTTP 567.
-
-## 0.1.25
-
-- Support Huaban pin links containing `modalImg`, downloading the actual wallpaper into the gallery instead of the HTML page.
-- Detect expired Huaban image authorizations and explain how to refresh the link.
-- Use concise, stable wallpaper download filenames such as `wallpaper-abc123def456.webp`.
-
 ## 0.1.24
 
 - Upgrade `@fastify/static` to 10.1.2 and refresh `brace-expansion` to 5.0.8 to resolve the reported high-severity dependency findings.

@@ -10,7 +10,7 @@ import { listManagedContainers } from "./container-service.js";
 import { createGeneratedTemplate, getTemplate, listTemplates, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "./template-service.js";
 import { deleteStoredIcon, listStoredIcons, storeUploadedIcon } from "./icon-service.js";
 import { validateIconUrl } from "./icon-validation.js";
-import { downloadRemoteImage, resolveWallpaperSourceUrl } from "./remote-image-service.js";
+import { downloadRemoteImage } from "./remote-image-service.js";
 import { deleteWallpaper, listWallpaperFiles, storeWallpaper, wallpaperPath } from "./wallpaper-service.js";
 import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
 import { synchronizeContainerIcon } from "./container-sync-service.js";
@@ -344,7 +344,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     try {
       const body = request.body as { url?: unknown; groupId?: unknown };
       if (typeof body?.url !== "string" || !body.url.trim()) throw new Error("壁纸 URL 不能为空");
-      const content = await downloadImage(validateIconUrl(resolveWallpaperSourceUrl(body.url.trim())), config.maxWallpaperBytes ?? config.maxUploadBytes);
+      const content = await downloadImage(validateIconUrl(body.url.trim()), config.maxWallpaperBytes ?? config.maxUploadBytes);
       const stored = await storeWallpaper(config, content);
       const groupId = body.groupId === null || body.groupId === undefined ? null : Number(body.groupId);
       database.setWallpaperGroup(stored.fileName, groupId);
