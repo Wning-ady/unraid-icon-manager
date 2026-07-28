@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.26
+
+- Use browser-compatible image request headers so Huaban CDN image downloads no longer return HTTP 567.
+
 ## 0.1.25
 
 - Support Huaban pin links containing `modalImg`, downloading the actual wallpaper into the gallery instead of the HTML page.

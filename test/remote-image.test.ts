@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
-import { downloadRemoteImage, isPublicImageAddress, resolveWallpaperSourceUrl, validateRemoteRaster } from "../src/server/remote-image-service.ts";
+import { downloadRemoteImage, isPublicImageAddress, remoteImageRequestHeaders, resolveWallpaperSourceUrl, validateRemoteRaster } from "../src/server/remote-image-service.ts";
 
 test("allows public image addresses and blocks local network targets", () => {
   assert.equal(isPublicImageAddress("1.1.1.1"), true);
@@ -28,4 +28,12 @@ test("resolves Huaban modalImg links and reports expired image authorizations", 
   assert.equal(resolveWallpaperSourceUrl(shared), image);
   assert.throws(() => resolveWallpaperSourceUrl("https://huaban.com/pins/6675766391"), /缺少原图地址/);
   assert.throws(() => resolveWallpaperSourceUrl("https://huaban.com/pins/6675766391?modalImg=https%3A%2F%2Fgd-hbimg-edge.huabanimg.com%2Fexpired%3Fauth_key%3D1-signature"), /已过期/);
+});
+
+test("uses browser image request headers for CDN compatibility", () => {
+  const headers = remoteImageRequestHeaders();
+  assert.match(headers["user-agent"], /Mozilla\/5\.0/);
+  assert.equal(headers["sec-fetch-dest"], "image");
+  assert.match(headers.accept, /image\/webp/);
+  assert.equal(headers["accept-encoding"], "identity");
 });

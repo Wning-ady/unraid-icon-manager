@@ -4,6 +4,18 @@ import { request as httpsRequest } from "node:https";
 import ipaddr from "ipaddr.js";
 import { openSafeImage } from "./image-security.js";
 
+/** Some image CDNs, including Huaban, reject the default Node.js request fingerprint. */
+export function remoteImageRequestHeaders(): Record<string, string> {
+  return {
+    accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+    "accept-encoding": "identity",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "sec-fetch-dest": "image",
+    "sec-fetch-mode": "no-cors",
+    "sec-fetch-site": "cross-site"
+  };
+}
+
 function isHuabanPinPage(url: URL): boolean {
   return (url.hostname === "huaban.com" || url.hostname.endsWith(".huaban.com")) && /^\/pins\/[^/]+\/?$/.test(url.pathname);
 }
@@ -68,7 +80,7 @@ async function requestOnce(url: URL, maxBytes: number, deadline: number): Promis
     };
     const requester = url.protocol === "https:" ? httpsRequest : httpRequest;
     const req = requester(url, {
-      headers: { accept: "image/png,image/jpeg,image/webp,*/*;q=0.1", "accept-encoding": "identity", "user-agent": "unraid-icon-manager/0.1" },
+      headers: remoteImageRequestHeaders(),
       lookup: (_hostname, options, callback) => {
         if (typeof options === "object" && options.all) {
           (callback as (error: null, addresses: Array<{ address: string; family: 4 | 6 }>) => void)(null, [resolved]);
