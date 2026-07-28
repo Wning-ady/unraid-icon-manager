@@ -28,7 +28,7 @@ test("downloads an icon URL into the gallery before applying and protects refere
     const applied = await app.inject({ method: "POST", url: "/api/icons/apply", payload: { containerIds: ["active-id"], icon: "https://images.example/icon.png" } });
     assert.equal(applied.statusCode, 200);
     const canonical = applied.json().icon as string;
-    assert.match(canonical, /^http:\/\/unraid:8787\/api\/icons\/file\/[a-f0-9]{64}\.png$/);
+    assert.match(canonical, /^http:\/\/unraid:8787\/api\/icons\/file\/icon-[a-f0-9]{16}\.png$/);
     assert.equal(applied.json().notice.includes("下载到图库"), true);
     const fileName = canonical.split("/").pop()!;
     assert.deepEqual(await readFile(join(config.iconsDir, fileName)), await sharp(png).resize(512, 512, { fit: "inside", withoutEnlargement: true }).png().toBuffer());
@@ -62,6 +62,7 @@ test("uploads, imports, groups, downloads and deletes wallpapers", async () => {
     assert.equal(group.statusCode, 201); const groupId = group.json().id as number;
     const uploaded = await app.inject({ method: "POST", url: "/api/wallpapers/upload", payload: { contentBase64: png.toString("base64"), groupId } });
     assert.equal(uploaded.statusCode, 201); const fileName = uploaded.json().fileName as string;
+    assert.match(fileName, /^wallpaper-[a-f0-9]{16}\.png$/);
     const gallery = await app.inject({ method: "GET", url: "/api/wallpapers", headers: { host: "unraid:8787" } });
     assert.equal(gallery.json()[0].groupId, groupId);
     assert.equal(gallery.json()[0].url, `http://unraid:8787/api/wallpapers/file/${fileName}`);
@@ -83,14 +84,19 @@ test("creates icon groups, uploads into a group and moves icons", async () => {
     assert.equal(group.statusCode, 201); const groupId = group.json().id as number;
     const duplicate = await app.inject({ method: "POST", url: "/api/icon-groups", payload: { name: "系统" } });
     assert.equal(duplicate.statusCode, 400);
-    const uploaded = await app.inject({ method: "POST", url: "/api/icons/upload", payload: { contentBase64: png.toString("base64"), groupId } });
+    const uploaded = await app.inject({ method: "POST", url: "/api/icons/upload", payload: { contentBase64: png.toString("base64"), groupId, displayName: "系统图标" } });
     assert.equal(uploaded.statusCode, 201); const fileName = uploaded.json().fileName as string;
     let icons = (await app.inject({ method: "GET", url: "/api/icons", headers: { host: "unraid:8787" } })).json();
     assert.equal(icons[0].groupId, groupId);
+    assert.equal(icons[0].displayName, "系统图标");
     const moved = await app.inject({ method: "PATCH", url: `/api/icons/${fileName}`, payload: { groupId: null } });
     assert.equal(moved.statusCode, 200);
     icons = (await app.inject({ method: "GET", url: "/api/icons", headers: { host: "unraid:8787" } })).json();
     assert.equal(icons[0].groupId, null);
+    const renamed = await app.inject({ method: "PATCH", url: `/api/icons/${fileName}`, payload: { displayName: "常用图标" } });
+    assert.equal(renamed.statusCode, 200);
+    icons = (await app.inject({ method: "GET", url: "/api/icons", headers: { host: "unraid:8787" } })).json();
+    assert.equal(icons[0].displayName, "常用图标");
     const invalid = await app.inject({ method: "PATCH", url: `/api/icons/${fileName}`, payload: { groupId: 9999 } });
     assert.equal(invalid.statusCode, 400);
   } finally { await app.close(); }

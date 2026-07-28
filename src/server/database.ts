@@ -11,9 +11,9 @@ export class AppDatabase {
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS audits (id INTEGER PRIMARY KEY, container_name TEXT NOT NULL, template_file TEXT NOT NULL, old_icon TEXT, new_icon TEXT, backup_file TEXT NOT NULL, created_at TEXT NOT NULL, result TEXT NOT NULL CHECK(result IN ('applied', 'restored')));
       CREATE TABLE IF NOT EXISTS wallpaper_groups (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE, created_at TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS wallpaper_assets (file_name TEXT PRIMARY KEY, group_id INTEGER REFERENCES wallpaper_groups(id) ON DELETE SET NULL);
+      CREATE TABLE IF NOT EXISTS wallpaper_assets (file_name TEXT PRIMARY KEY, group_id INTEGER REFERENCES wallpaper_groups(id) ON DELETE SET NULL, display_name TEXT);
       CREATE TABLE IF NOT EXISTS icon_groups (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE, created_at TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS icon_assets (file_name TEXT PRIMARY KEY, group_id INTEGER REFERENCES icon_groups(id) ON DELETE SET NULL);
+      CREATE TABLE IF NOT EXISTS icon_assets (file_name TEXT PRIMARY KEY, group_id INTEGER REFERENCES icon_groups(id) ON DELETE SET NULL, display_name TEXT);
       CREATE TABLE IF NOT EXISTS ui_settings (
         id INTEGER PRIMARY KEY CHECK(id = 1),
         theme TEXT NOT NULL CHECK(theme IN ('light', 'dark')),
@@ -36,6 +36,10 @@ export class AppDatabase {
     if (!uiColumns.some((column) => column.name === "surface_opacity")) {
       this.database.exec("ALTER TABLE ui_settings ADD COLUMN surface_opacity INTEGER NOT NULL DEFAULT 70 CHECK(surface_opacity BETWEEN 0 AND 100)");
     }
+    const iconColumns = this.database.prepare("PRAGMA table_info(icon_assets)").all() as Array<{ name: string }>;
+    if (!iconColumns.some((column) => column.name === "display_name")) this.database.exec("ALTER TABLE icon_assets ADD COLUMN display_name TEXT");
+    const wallpaperColumns = this.database.prepare("PRAGMA table_info(wallpaper_assets)").all() as Array<{ name: string }>;
+    if (!wallpaperColumns.some((column) => column.name === "display_name")) this.database.exec("ALTER TABLE wallpaper_assets ADD COLUMN display_name TEXT");
   }
 
   addAudit(record: Omit<AuditRecord, "id">): AuditRecord {
@@ -99,6 +103,17 @@ export class AppDatabase {
       .map((row) => [row.file_name, row.group_id]));
   }
 
+  iconDisplayNameMap(): Map<string, string | null> {
+    return new Map((this.database.prepare("SELECT file_name, display_name FROM icon_assets").all() as Array<{ file_name: string; display_name: string | null }>)
+      .map((row) => [row.file_name, row.display_name]));
+  }
+
+  setIconDisplayName(fileName: string, displayName: string | null): void {
+    const clean = displayName?.trim() || null;
+    if (clean && clean.length > 80) throw new Error("图标名称最多 80 个字符");
+    this.database.prepare("INSERT INTO icon_assets (file_name, group_id, display_name) VALUES (?, NULL, ?) ON CONFLICT(file_name) DO UPDATE SET display_name = excluded.display_name").run(fileName, clean);
+  }
+
   removeIcon(fileName: string): void {
     this.database.prepare("DELETE FROM icon_assets WHERE file_name = ?").run(fileName);
   }
@@ -129,6 +144,17 @@ export class AppDatabase {
   wallpaperGroupMap(): Map<string, number | null> {
     return new Map((this.database.prepare("SELECT file_name, group_id FROM wallpaper_assets").all() as Array<{ file_name: string; group_id: number | null }>)
       .map((row) => [row.file_name, row.group_id]));
+  }
+
+  wallpaperDisplayNameMap(): Map<string, string | null> {
+    return new Map((this.database.prepare("SELECT file_name, display_name FROM wallpaper_assets").all() as Array<{ file_name: string; display_name: string | null }>)
+      .map((row) => [row.file_name, row.display_name]));
+  }
+
+  setWallpaperDisplayName(fileName: string, displayName: string | null): void {
+    const clean = displayName?.trim() || null;
+    if (clean && clean.length > 80) throw new Error("壁纸名称最多 80 个字符");
+    this.database.prepare("INSERT INTO wallpaper_assets (file_name, group_id, display_name) VALUES (?, NULL, ?) ON CONFLICT(file_name) DO UPDATE SET display_name = excluded.display_name").run(fileName, clean);
   }
 
   getUiSettings(): UiSettings {

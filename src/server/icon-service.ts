@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { lstat, mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AppConfig } from "./types.js";
 import type { StoredIcon } from "./types.js";
 import { openSafeImage } from "./image-security.js";
+import { ICON_FILE_NAME_PATTERN, iconFileName } from "./asset-filenames.js";
 
-const ICON_PATTERN = /^[a-f0-9]{64}\.png$/;
+const ICON_PATTERN = ICON_FILE_NAME_PATTERN;
 
 function safeImage(buffer: Buffer) {
   return openSafeImage(buffer, 16_000_000);
@@ -33,8 +34,15 @@ export async function storeUploadedIcon(config: AppConfig, buffer: Buffer): Prom
   } catch {
     throw new Error("Upload must be a valid PNG, SVG, WebP, JPEG, or GIF image");
   }
-  const fileName = `${createHash("sha256").update(png).digest("hex")}.png`;
+  const hash = createHash("sha256").update(png).digest("hex");
   await mkdir(config.iconsDir, { recursive: true });
+  const legacyName = `${hash}.png`;
+  let fileName = (await lstat(join(config.iconsDir, legacyName)).catch(() => null)) ? legacyName : iconFileName(hash);
+  const shortPath = join(config.iconsDir, fileName);
+  if (await lstat(shortPath).catch(() => null)) {
+    const current = await readFile(shortPath);
+    if (!current.equals(png)) fileName = iconFileName(hash, 24);
+  }
   if (config.maxIconGalleryBytes && !(await lstat(join(config.iconsDir, fileName)).catch(() => null))) {
     if ((await regularBytes(config.iconsDir, ICON_PATTERN)) + png.length > config.maxIconGalleryBytes) {
       throw new Error(`图标图库已达到 ${config.maxIconGalleryBytes} 字节配额，请先删除不再使用的图标`);
@@ -49,7 +57,7 @@ export async function storeUploadedIcon(config: AppConfig, buffer: Buffer): Prom
 }
 
 /** Lists only stable normalized PNG assets already stored inside /config/icons. */
-export async function listStoredIcons(config: AppConfig, baseUrl: string, groupIds = new Map<string, number | null>()): Promise<StoredIcon[]> {
+export async function listStoredIcons(config: AppConfig, baseUrl: string, groupIds = new Map<string, number | null>(), displayNames = new Map<string, string | null>()): Promise<StoredIcon[]> {
   await mkdir(config.iconsDir, { recursive: true });
   const entries = await readdir(config.iconsDir, { withFileTypes: true });
   const selected = entries.filter((entry) => entry.isFile() && ICON_PATTERN.test(entry.name));
@@ -60,7 +68,7 @@ export async function listStoredIcons(config: AppConfig, baseUrl: string, groupI
       const metadata = await stat(join(config.iconsDir, entry.name));
       const previewUrl = `/api/icons/file/${entry.name}`;
       const createdAt = metadata.birthtimeMs > 0 ? metadata.birthtime : metadata.mtime;
-      return { fileName: entry.name, previewUrl, icon: `${baseUrl}${previewUrl}`, bytes: metadata.size, createdAt: createdAt.toISOString(), groupId: groupIds.get(entry.name) ?? null };
+      return { fileName: entry.name, displayName: displayNames.get(entry.name) ?? null, previewUrl, icon: `${baseUrl}${previewUrl}`, bytes: metadata.size, createdAt: createdAt.toISOString(), groupId: groupIds.get(entry.name) ?? null };
     }));
     icons.push(...batch);
   }
@@ -68,7 +76,7 @@ export async function listStoredIcons(config: AppConfig, baseUrl: string, groupI
 }
 
 export async function deleteStoredIcon(config: AppConfig, fileName: string): Promise<void> {
-  if (!/^[a-f0-9]{64}\.png$/.test(fileName)) throw new Error("Invalid icon file name");
+  if (!ICON_PATTERN.test(fileName)) throw new Error("Invalid icon file name");
   const filePath = join(config.iconsDir, fileName);
   let metadata;
   try { metadata = await lstat(filePath); } catch { throw new Error("Icon file not found"); }

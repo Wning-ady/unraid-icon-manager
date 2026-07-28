@@ -4,6 +4,7 @@ import { copyFile, lstat, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { AppConfig, ManagedVirtualMachine } from "./types.js";
+import { ICON_FILE_NAME_PATTERN } from "./asset-filenames.js";
 
 const execFileAsync = promisify(execFile);
 export const UNRAID_VM_METADATA_URI = "http://unraid";
@@ -75,7 +76,7 @@ export async function listVirtualMachines(config: AppConfig): Promise<{ vms: Man
     const vms = await Promise.all(names.map(async (domain) => {
       const parsed = parseVmDomainXml(await virsh(config, ["dumpxml", domain, "--inactive"]));
       const state = await virsh(config, ["domstate", parsed.id]);
-      if (parsed.icon && /^[a-f0-9]{64}\.png$/.test(parsed.icon)) {
+      if (parsed.icon && ICON_FILE_NAME_PATTERN.test(parsed.icon)) {
         const source = join(config.iconsDir, parsed.icon);
         const target = join(config.vmIconsDir ?? "/unraid/vm-icons", parsed.icon);
         if (existsSync(source) && !existsSync(target)) {
@@ -91,7 +92,7 @@ export async function listVirtualMachines(config: AppConfig): Promise<{ vms: Man
 
 export async function updateVirtualMachineIcon(config: AppConfig, vmId: string, sourcePng: string, fileName: string): Promise<ManagedVirtualMachine> {
   if (!/^[0-9a-f-]{36}$/i.test(vmId)) throw new Error("虚拟机 UUID 无效");
-  if (!/^[a-f0-9]{64}\.png$/.test(fileName)) throw new Error("VM 图标文件名无效");
+  if (!ICON_FILE_NAME_PATTERN.test(fileName)) throw new Error("VM 图标文件名无效");
   const xml = await virsh(config, ["dumpxml", vmId, "--inactive"]);
   const parsed = parseVmDomainXml(xml);
   const vmIconsDir = config.vmIconsDir ?? "/unraid/vm-icons";

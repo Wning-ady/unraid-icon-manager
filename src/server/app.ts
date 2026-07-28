@@ -12,6 +12,7 @@ import { deleteStoredIcon, listStoredIcons, storeUploadedIcon } from "./icon-ser
 import { validateIconUrl } from "./icon-validation.js";
 import { downloadRemoteImage } from "./remote-image-service.js";
 import { deleteWallpaper, listWallpaperFiles, storeWallpaper, wallpaperPath } from "./wallpaper-service.js";
+import { ICON_FILE_NAME_PATTERN, WALLPAPER_FILE_NAME_PATTERN } from "./asset-filenames.js";
 import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
 import { synchronizeContainerIcon } from "./container-sync-service.js";
 import { listVirtualMachines, updateVirtualMachineIcon } from "./vm-service.js";
@@ -48,7 +49,7 @@ function ownIconFile(config: AppConfig, value: string): string | null {
   let path = icon;
   try { if (/^https?:\/\//i.test(icon)) path = new URL(icon).pathname; } catch { return null; }
   const fileName = path.split("/").pop() ?? "";
-  return /^[a-f0-9]{64}\.png$/.test(fileName) && existsSync(join(config.iconsDir, fileName)) ? fileName : null;
+  return ICON_FILE_NAME_PATTERN.test(fileName) && existsSync(join(config.iconsDir, fileName)) ? fileName : null;
 }
 
 export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage; synchronizeContainerIcon?: typeof synchronizeContainerIcon } = {}) {
@@ -132,7 +133,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       if ("wallpaperFileName" in patch) {
         if (patch.wallpaperFileName !== null && typeof patch.wallpaperFileName !== "string") throw new Error("wallpaperFileName 必须是字符串或 null");
         if (typeof patch.wallpaperFileName === "string") {
-          if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(patch.wallpaperFileName) || !existsSync(wallpaperPath(config, patch.wallpaperFileName))) {
+          if (!WALLPAPER_FILE_NAME_PATTERN.test(patch.wallpaperFileName) || !existsSync(wallpaperPath(config, patch.wallpaperFileName))) {
             throw new Error("壁纸不存在");
           }
         }
@@ -195,12 +196,16 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
 
   app.post("/api/icons/upload", async (request, reply) => {
     try {
-      const body = request.body as { contentBase64?: unknown; groupId?: unknown };
+      const body = request.body as { contentBase64?: unknown; groupId?: unknown; displayName?: unknown };
       if (typeof body?.contentBase64 !== "string") throw new Error("contentBase64 is required");
       const content = body.contentBase64.replace(/^data:[^;]+;base64,/, "");
       const result = await storeUploadedIcon(config, Buffer.from(content, "base64"));
       if (body.groupId !== undefined) database.setIconGroup(result.fileName, body.groupId === null ? null : Number(body.groupId));
       else database.ensureIconAsset(result.fileName);
+      if (body.displayName !== undefined) {
+        if (typeof body.displayName !== "string") throw new Error("图标名称必须是文本");
+        database.setIconDisplayName(result.fileName, body.displayName);
+      }
       return reply.code(201).send({ ...result, icon: uploadedIconUrl(config, request, result.fileName), previewUrl: `/api/icons/file/${result.fileName}` });
     } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); }
   });
@@ -213,15 +218,19 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       return reply.code(201).send(database.addIconGroup(body.name));
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
-  app.get("/api/icons", async (request) => listStoredIcons(config, publicBaseUrl(config, request), database.iconGroupMap()));
+  app.get("/api/icons", async (request) => listStoredIcons(config, publicBaseUrl(config, request), database.iconGroupMap(), database.iconDisplayNameMap()));
 
   app.patch("/api/icons/:fileName", async (request, reply) => {
     try {
       const fileName = (request.params as { fileName: string }).fileName;
-      if (!/^[a-f0-9]{64}\.png$/.test(fileName) || !existsSync(join(config.iconsDir, fileName))) throw new Error("图标不存在");
-      const body = request.body as { groupId?: unknown };
-      const groupId = body.groupId === null ? null : Number(body.groupId);
-      database.setIconGroup(fileName, groupId);
+      if (!ICON_FILE_NAME_PATTERN.test(fileName) || !existsSync(join(config.iconsDir, fileName))) throw new Error("图标不存在");
+      const body = request.body as { groupId?: unknown; displayName?: unknown };
+      if (body.groupId !== undefined) database.setIconGroup(fileName, body.groupId === null ? null : Number(body.groupId));
+      if (body.displayName !== undefined) {
+        if (typeof body.displayName !== "string") throw new Error("图标名称必须是文本");
+        database.setIconDisplayName(fileName, body.displayName);
+      }
+      if (body.groupId === undefined && body.displayName === undefined) throw new Error("缺少要更新的字段");
       return { ok: true };
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
@@ -230,7 +239,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     try {
       await withIconMutation(async () => {
         const fileName = (request.params as { fileName: string }).fileName;
-        if (!/^[a-f0-9]{64}\.png$/.test(fileName)) throw new Error("Invalid icon file name");
+        if (!ICON_FILE_NAME_PATTERN.test(fileName)) throw new Error("Invalid icon file name");
         const referenced = (value: string | null) => Boolean(value && value.includes(fileName));
         const templateReferences = (await listTemplates(config)).filter((template) => referenced(template.icon));
         const auditReferences = database.countIconReferences(fileName);
@@ -247,7 +256,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
 
   app.get("/api/icons/file/:fileName", async (request, reply) => {
     const fileName = (request.params as { fileName: string }).fileName;
-    if (!/^[a-f0-9]{64}\.png$/.test(fileName)) return reply.code(400).send({ message: "Invalid icon file name" });
+    if (!ICON_FILE_NAME_PATTERN.test(fileName)) return reply.code(400).send({ message: "Invalid icon file name" });
     const filePath = join(config.iconsDir, fileName);
     try {
       const handle = await open(filePath, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -328,15 +337,19 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       return reply.code(201).send(database.addWallpaperGroup(body.name));
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
-  app.get("/api/wallpapers", async (request) => listWallpaperFiles(config, publicBaseUrl(config, request), database.wallpaperGroupMap()));
+  app.get("/api/wallpapers", async (request) => listWallpaperFiles(config, publicBaseUrl(config, request), database.wallpaperGroupMap(), database.wallpaperDisplayNameMap()));
   app.post("/api/wallpapers/upload", async (request, reply) => {
     try {
-      const body = request.body as { contentBase64?: unknown; groupId?: unknown };
+      const body = request.body as { contentBase64?: unknown; groupId?: unknown; displayName?: unknown };
       if (typeof body?.contentBase64 !== "string") throw new Error("contentBase64 is required");
       const content = body.contentBase64.replace(/^data:[^;]+;base64,/, "");
       const stored = await storeWallpaper(config, Buffer.from(content, "base64"));
       const groupId = body.groupId === null || body.groupId === undefined ? null : Number(body.groupId);
       database.setWallpaperGroup(stored.fileName, groupId);
+      if (body.displayName !== undefined) {
+        if (typeof body.displayName !== "string") throw new Error("壁纸名称必须是文本");
+        database.setWallpaperDisplayName(stored.fileName, body.displayName);
+      }
       return reply.code(201).send(stored);
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
@@ -354,10 +367,15 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
   app.patch("/api/wallpapers/:fileName", async (request, reply) => {
     try {
       const fileName = (request.params as { fileName: string }).fileName;
-      if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(fileName) || !existsSync(wallpaperPath(config, fileName))) throw new Error("壁纸不存在");
-      const body = request.body as { groupId?: unknown };
-      const groupId = body.groupId === null ? null : Number(body.groupId);
-      database.setWallpaperGroup(fileName, groupId); return { ok: true };
+      if (!WALLPAPER_FILE_NAME_PATTERN.test(fileName) || !existsSync(wallpaperPath(config, fileName))) throw new Error("壁纸不存在");
+      const body = request.body as { groupId?: unknown; displayName?: unknown };
+      if (body.groupId !== undefined) database.setWallpaperGroup(fileName, body.groupId === null ? null : Number(body.groupId));
+      if (body.displayName !== undefined) {
+        if (typeof body.displayName !== "string") throw new Error("壁纸名称必须是文本");
+        database.setWallpaperDisplayName(fileName, body.displayName);
+      }
+      if (body.groupId === undefined && body.displayName === undefined) throw new Error("缺少要更新的字段");
+      return { ok: true };
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
   app.delete("/api/wallpapers/:fileName", async (request, reply) => {
@@ -366,7 +384,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
   });
   app.get("/api/wallpapers/file/:fileName", async (request, reply) => {
     const fileName = (request.params as { fileName: string }).fileName;
-    if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(fileName)) return reply.code(404).send({ message: "壁纸不存在" });
+    if (!WALLPAPER_FILE_NAME_PATTERN.test(fileName)) return reply.code(404).send({ message: "壁纸不存在" });
     const extension = fileName.split(".").pop();
     if ((request.query as { download?: string }).download === "1") {
       reply.header("content-disposition", `attachment; filename="wallpaper-${fileName.slice(0, 12)}.${extension}"`);

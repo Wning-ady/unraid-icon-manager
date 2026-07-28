@@ -40,7 +40,7 @@ export async function invalidateUnraidIconCache(config: AppConfig, containerName
 export async function resolveOwnUploadedIconPng(config: AppConfig, icon: string): Promise<Buffer | null> {
   if (!config.publicBaseUrl) return null;
   const url = new URL(icon);
-  const match = url.pathname.match(/^\/api\/icons\/file\/([a-f0-9]{64}\.png)$/);
+  const match = url.pathname.match(/^\/api\/icons\/file\/((?:icon-[a-f0-9]{16}(?:[a-f0-9]{8})?|[a-f0-9]{64})\.png)$/);
   if (url.origin === new URL(config.publicBaseUrl).origin && !url.search && !url.hash && match) {
     return readFile(join(config.iconsDir, match[1]));
   }
