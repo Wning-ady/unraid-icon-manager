@@ -582,3 +582,45 @@ input:focus { border-color: #38bdf8; outline-color: rgb(56 189 248 / .16); }
   .sidebar { width: 100%; border-right: 0; border-bottom: 1px solid rgb(255 255 255 / .1); }
   .workspace { height: auto; min-height: calc(100dvh - 95px); overflow: visible; }
 }
+
+/* Full-screen control-plane layout: no floating-frame chrome or window controls. */
+.app-shell { display: block; padding: 0; }
+.mac-window { width: 100%; height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+.mac-titlebar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(260px, 440px) minmax(220px, 1fr); position: absolute; padding: 0 1.35rem; }
+.mac-title { position: static; justify-self: start; transform: none; }
+.mac-title::before { width: 1px; height: 20px; margin-right: .25rem; background: rgb(255 255 255 / .16); content: ""; }
+.titlebar-search { display: flex; align-items: center; gap: .5rem; width: 100%; margin: 0; padding: .28rem .65rem; border: 1px solid rgb(255 255 255 / .12); border-radius: 999px; color: #91a6be; background: rgb(2 10 25 / .28); box-shadow: inset 0 1px 1px rgb(0 0 0 / .18); }
+.titlebar-search span { font-size: 1.2rem; line-height: 1; }
+.titlebar-search input { min-height: 1.8rem; padding: 0; border: 0; border-radius: 0; color: #eaf3ff; background: transparent; outline: 0; }
+.titlebar-search input:focus { outline: 0; }
+.mac-title-status { justify-self: end; min-width: 0; }
+.mac-body { min-height: 0; }
+.sidebar { flex-basis: 320px; width: 320px; padding: 1.55rem 1.15rem 1rem; background: rgb(4 12 31 / calc(.34 + var(--surface-opacity, .7) * .42)); }
+.brand { margin: .05rem .3rem 1.7rem; }
+.nav-item { padding: .82rem .9rem; border-radius: 17px; font-size: .93rem; }
+.appearance-panel { margin-top: auto; }
+.workspace { padding: 2.25rem clamp(1.5rem, 3vw, 3.5rem) 4rem; }
+.topbar { display: none; }
+.notice { margin-top: 0; }
+.stats-strip { margin-top: 0; }
+.container-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 1.1rem; }
+.card { min-height: 168px; padding: 1rem; }
+.card-open { grid-template-columns: 58px minmax(0, 1fr); gap: .9rem; }
+.icon { width: 58px; height: 58px; border-radius: 17px; }
+.card strong { font-size: .98rem; }
+.image-name { margin: .32rem 0 .48rem; font-size: .76rem; }
+
+@media (max-width: 900px) {
+  .sidebar { flex-basis: 238px; width: 238px; padding: 1.1rem .75rem; }
+  .mac-titlebar { grid-template-columns: minmax(180px, 1fr) minmax(200px, 320px) minmax(130px, 1fr); }
+  .container-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .mac-titlebar { display: flex; justify-content: space-between; padding: 0 .9rem; }
+  .titlebar-search { display: none; }
+  .mac-title::before { display: none; }
+  .sidebar { width: 100%; padding: .6rem .8rem; }
+  .workspace { padding: 1.35rem 1rem 3rem; }
+  .topbar { display: flex; }
+}
