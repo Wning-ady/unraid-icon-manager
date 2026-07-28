@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.25
+
+- Refresh the Web UI as a macOS-inspired glass workspace: floating application frame, title bar, glass navigation, cards, galleries and dialogs.
+- Preserve every container, VM, gallery, wallpaper, audit and API behavior from 0.1.24.
+
 ## 0.1.24
 
 - Uploads now use compact, readable content-addressed file names while retaining compatibility with existing long names.
