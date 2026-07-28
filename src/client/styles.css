@@ -650,6 +650,44 @@ input:focus { border-color: #38bdf8; outline-color: rgb(56 189 248 / .16); }
 :root[data-theme="light"] .clear-wallpaper:hover:not(:disabled) { color: #173b62; background: rgb(255 255 255 / .7); }
 :root[data-theme="light"] .result-count { border-color: rgb(77 112 148 / .16); color: #4c6580; background: rgb(255 255 255 / .36); }
 
+/* Day mode: card content is a control, so keep the global button fill out of it. */
+button.card-open,
+button.card-open:hover:not(:disabled),
+button.card-open:focus-visible {
+  border: 0;
+  color: inherit;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+:root[data-theme="light"] .stats-strip div,
+:root[data-theme="light"] .toolbar,
+:root[data-theme="light"] .editor,
+:root[data-theme="light"] .split,
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .gallery-page,
+:root[data-theme="light"] .about-page,
+:root[data-theme="light"] .audit-detail,
+:root[data-theme="light"] .gallery-item,
+:root[data-theme="light"] .wallpaper-item,
+:root[data-theme="light"] .empty-gallery {
+  background: rgb(255 255 255 / calc(.58 + var(--surface-opacity, .7) * .32));
+}
+
+:root[data-theme="light"] .card:hover {
+  background: rgb(255 255 255 / calc(.66 + var(--surface-opacity, .7) * .3));
+}
+
+:root[data-theme="light"] .state.running { color: #198458; background: #e5f8ef; }
+:root[data-theme="light"] .state.exited { color: #64748b; background: #eef2f6; }
+:root[data-theme="light"] .state.created { color: #286ab2; background: #e6f2ff; }
+:root[data-theme="light"] .template-note.editable { color: #167451; }
+:root[data-theme="light"] .template-note.will-create { color: #8a5a10; }
+:root[data-theme="light"] .modal-gallery-tools select { border-color: #cbd7e4; color: #1e2a3f; background: rgb(255 255 255 / .88); }
+:root[data-theme="light"] .appearance-panel { background: rgb(255 255 255 / .62); }
+:root[data-theme="light"] .theme-switch { background: rgb(255 255 255 / .56); }
+
 @media (max-width: 900px) {
   .sidebar { flex-basis: 160px; width: 160px; padding: .85rem .35rem; }
 }
