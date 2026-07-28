@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
-import { downloadRemoteImage, isPublicImageAddress, validateRemoteRaster } from "../src/server/remote-image-service.ts";
+import { downloadRemoteImage, isPublicImageAddress, resolveWallpaperSourceUrl, validateRemoteRaster } from "../src/server/remote-image-service.ts";
 
 test("allows public image addresses and blocks local network targets", () => {
   assert.equal(isPublicImageAddress("1.1.1.1"), true);
@@ -20,4 +20,12 @@ test("accepts remote raster bytes but rejects SVG even with a generic content ty
   const png = await sharp({ create: { width: 2, height: 2, channels: 4, background: "red" } }).png().toBuffer();
   await validateRemoteRaster(png);
   await assert.rejects(validateRemoteRaster(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>')), /不接受远程 SVG/);
+});
+
+test("resolves Huaban modalImg links and reports expired image authorizations", () => {
+  const image = `https://gd-hbimg-edge.huabanimg.com/example?auth_key=${Math.floor(Date.now() / 1000) + 3600}-signature`;
+  const shared = `https://huaban.com/pins/6675766391?modalImg=${encodeURIComponent(image)}`;
+  assert.equal(resolveWallpaperSourceUrl(shared), image);
+  assert.throws(() => resolveWallpaperSourceUrl("https://huaban.com/pins/6675766391"), /缺少原图地址/);
+  assert.throws(() => resolveWallpaperSourceUrl("https://huaban.com/pins/6675766391?modalImg=https%3A%2F%2Fgd-hbimg-edge.huabanimg.com%2Fexpired%3Fauth_key%3D1-signature"), /已过期/);
 });

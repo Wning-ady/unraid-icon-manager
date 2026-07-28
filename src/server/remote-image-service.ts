@@ -4,6 +4,27 @@ import { request as httpsRequest } from "node:https";
 import ipaddr from "ipaddr.js";
 import { openSafeImage } from "./image-security.js";
 
+function isHuabanPinPage(url: URL): boolean {
+  return (url.hostname === "huaban.com" || url.hostname.endsWith(".huaban.com")) && /^\/pins\/[^/]+\/?$/.test(url.pathname);
+}
+
+function huabanImageUrl(page: URL): URL {
+  const modalImg = page.searchParams.get("modalImg");
+  if (!modalImg) throw new Error("花瓣作品链接缺少原图地址，请重新复制带 modalImg 参数的图片链接");
+  const image = new URL(modalImg);
+  const authExpiry = image.searchParams.get("auth_key")?.match(/^(\d+)-/);
+  if (authExpiry && Number(authExpiry[1]) * 1000 <= Date.now()) {
+    throw new Error("花瓣图片链接已过期，请在花瓣重新打开图片后复制最新链接");
+  }
+  return image;
+}
+
+/** Resolves Huaban's share-page modalImg parameter before image validation and download. */
+export function resolveWallpaperSourceUrl(rawUrl: string): string {
+  const source = new URL(rawUrl);
+  return (isHuabanPinPage(source) ? huabanImageUrl(source) : source).toString();
+}
+
 export function isPublicImageAddress(address: string): boolean {
   try {
     let parsed = ipaddr.parse(address);
