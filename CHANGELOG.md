@@ -2,6 +2,8 @@
 
 ## 0.1.24
 
+- Uploads now use compact, readable content-addressed file names while retaining compatibility with existing long names.
+- Add batch upload, browser-selected folder scanning, batch deletion, and gallery display-name renaming for icons and wallpapers.
 - Upgrade `@fastify/static` to 10.1.2 and refresh `brace-expansion` to 5.0.8 to resolve the reported high-severity dependency findings.
 - Production dependency audit now reports zero vulnerabilities.
 

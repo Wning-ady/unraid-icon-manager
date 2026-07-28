@@ -47,8 +47,8 @@ test("applies by deployed container id, invalidates caches, and rejects removed 
     assert.equal(gallery.json()[0].icon, `http://unraid:8787/api/icons/file/${iconFile}`);
     const uploaded = await app.inject({ method: "POST", url: "/api/icons/upload", payload: { contentBase64: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2" fill="red"/></svg>').toString("base64") } });
     assert.equal(uploaded.statusCode, 201);
-    assert.match(uploaded.json().icon, /^http:\/\/unraid:8787\/api\/icons\/file\/[a-f0-9]{64}\.png$/);
-    assert.match(uploaded.json().previewUrl, /^\/api\/icons\/file\/[a-f0-9]{64}\.png$/);
+    assert.match(uploaded.json().icon, /^http:\/\/unraid:8787\/api\/icons\/file\/icon-[a-f0-9]{16}\.png$/);
+    assert.match(uploaded.json().previewUrl, /^\/api\/icons\/file\/icon-[a-f0-9]{16}\.png$/);
 
     await writeFile(join(cacheDir, "active-icon.png"), "old");
     await writeFile(join(cacheRamDir, "active-icon.png"), "old");

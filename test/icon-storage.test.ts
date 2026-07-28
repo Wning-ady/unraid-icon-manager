@@ -20,8 +20,8 @@ test("normalizes valid PNG, SVG, and WebP uploads to stable PNG paths", async ()
 
   for (const upload of [png, svg, webp]) {
     const stored = await storeUploadedIcon(config, upload);
-    assert.match(stored.fileName, /^[a-f0-9]{64}\.png$/);
-    assert.match(stored.icon, /^\/mnt\/user\/icons\/[a-f0-9]{64}\.png$/);
+    assert.match(stored.fileName, /^icon-[a-f0-9]{16}\.png$/);
+    assert.match(stored.icon, /^\/mnt\/user\/icons\/icon-[a-f0-9]{16}\.png$/);
     assert.equal((await stat(join(config.iconsDir, stored.fileName))).isFile(), true);
   }
 });

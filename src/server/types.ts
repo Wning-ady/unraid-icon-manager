@@ -77,6 +77,7 @@ export interface IconCandidate {
 
 export interface StoredIcon {
   fileName: string;
+  displayName: string | null;
   previewUrl: string;
   icon: string;
   bytes: number;
@@ -98,6 +99,7 @@ export interface WallpaperGroup {
 
 export interface StoredWallpaper {
   fileName: string;
+  displayName: string | null;
   previewUrl: string;
   downloadUrl: string;
   url: string;

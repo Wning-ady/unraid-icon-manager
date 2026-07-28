@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { lstat, mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AppConfig, StoredWallpaper } from "./types.js";
 import { openSafeImage } from "./image-security.js";
+import { WALLPAPER_FILE_NAME_PATTERN, wallpaperFileName } from "./asset-filenames.js";
 
 function directory(config: AppConfig): string { return config.wallpapersDir ?? join(config.configDir, "wallpapers"); }
-const WALLPAPER_PATTERN = /^[a-f0-9]{64}\.(?:png|jpg|webp)$/;
+const WALLPAPER_PATTERN = WALLPAPER_FILE_NAME_PATTERN;
 
 function safeImage(input: Buffer | string) {
   return openSafeImage(input, 80_000_000);
@@ -32,9 +33,16 @@ export async function storeWallpaper(config: AppConfig, buffer: Buffer): Promise
   if (!metadata.width || !metadata.height || !["png", "jpeg", "webp"].includes(metadata.format ?? "")) {
     throw new Error("壁纸必须是有效的 PNG、JPEG 或 WebP 图片");
   }
-  const extension = metadata.format === "jpeg" ? "jpg" : metadata.format;
-  const fileName = `${createHash("sha256").update(buffer).digest("hex")}.${extension}`;
+  const extension: "png" | "jpg" | "webp" = metadata.format === "jpeg" ? "jpg" : metadata.format as "png" | "webp";
+  const hash = createHash("sha256").update(buffer).digest("hex");
   await mkdir(directory(config), { recursive: true });
+  const legacyName = `${hash}.${extension}`;
+  let fileName = (await lstat(join(directory(config), legacyName)).catch(() => null)) ? legacyName : wallpaperFileName(hash, extension);
+  const shortPath = join(directory(config), fileName);
+  if (await lstat(shortPath).catch(() => null)) {
+    const current = await readFile(shortPath);
+    if (!current.equals(buffer)) fileName = wallpaperFileName(hash, extension, 24);
+  }
   if (config.maxWallpaperGalleryBytes && !(await lstat(join(directory(config), fileName)).catch(() => null))) {
     if ((await galleryBytes(directory(config))) + buffer.length > config.maxWallpaperGalleryBytes) {
       throw new Error(`壁纸图库已达到 ${config.maxWallpaperGalleryBytes} 字节配额，请先删除不再使用的壁纸`);
@@ -45,7 +53,7 @@ export async function storeWallpaper(config: AppConfig, buffer: Buffer): Promise
   return { fileName, bytes: buffer.length, width: metadata.width, height: metadata.height, mimeType: `image/${metadata.format}` };
 }
 
-export async function listWallpaperFiles(config: AppConfig, baseUrl: string, groupIds: Map<string, number | null>): Promise<StoredWallpaper[]> {
+export async function listWallpaperFiles(config: AppConfig, baseUrl: string, groupIds: Map<string, number | null>, displayNames = new Map<string, string | null>()): Promise<StoredWallpaper[]> {
   await mkdir(directory(config), { recursive: true });
   const entries = await readdir(directory(config), { withFileTypes: true });
   const selected = entries.filter((entry) => entry.isFile() && WALLPAPER_PATTERN.test(entry.name));
@@ -56,7 +64,7 @@ export async function listWallpaperFiles(config: AppConfig, baseUrl: string, gro
     const [file, image] = await Promise.all([stat(filePath), safeImage(filePath).metadata()]);
     const createdAt = file.birthtimeMs > 0 ? file.birthtime : file.mtime;
     const previewUrl = `/api/wallpapers/file/${entry.name}`;
-    return { fileName: entry.name, previewUrl, downloadUrl: `${previewUrl}?download=1`, url: `${baseUrl}${previewUrl}`, bytes: file.size,
+    return { fileName: entry.name, displayName: displayNames.get(entry.name) ?? null, previewUrl, downloadUrl: `${previewUrl}?download=1`, url: `${baseUrl}${previewUrl}`, bytes: file.size,
       width: image.width ?? 0, height: image.height ?? 0, mimeType: `image/${image.format}`, groupId: groupIds.get(entry.name) ?? null, createdAt: createdAt.toISOString() };
     }));
     items.push(...batch);
@@ -65,7 +73,7 @@ export async function listWallpaperFiles(config: AppConfig, baseUrl: string, gro
 }
 
 export async function deleteWallpaper(config: AppConfig, fileName: string): Promise<void> {
-  if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(fileName)) throw new Error("壁纸文件名无效");
+  if (!WALLPAPER_PATTERN.test(fileName)) throw new Error("壁纸文件名无效");
   const filePath = join(directory(config), fileName);
   let metadata;
   try { metadata = await lstat(filePath); } catch { throw new Error("壁纸不存在"); }
