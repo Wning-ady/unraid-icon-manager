@@ -41,7 +41,7 @@ Unraid Icon Manager 是一个面向 Unraid 的自托管 Web 图标管理器。
 
 ```bash
 docker pull waning/unraid-icon-manager:latest
-docker pull waning/unraid-icon-manager:v0.1.25
+docker pull waning/unraid-icon-manager:v0.1.26
 ```
 
 镜像支持 `linux/amd64` 与 `linux/arm64`。
@@ -57,7 +57,7 @@ docker pull waning/unraid-icon-manager:v0.1.25
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.25
+    image: waning/unraid-icon-manager:v0.1.26
     container_name: unraid-icon-manager
 
     ports:
