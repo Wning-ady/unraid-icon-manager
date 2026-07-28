@@ -503,8 +503,8 @@ export function App() {
     <div className="wallpaper-backdrop" aria-hidden="true" />
     <div className="mac-window">
     <header className="mac-titlebar" aria-label="应用标题栏">
-      <div className="traffic-lights" aria-hidden="true"><i /><i /><i /></div>
       <div className="mac-title"><img src="/project-icon.png" alt="" /> <span>Unraid Icon Studio</span><small>管理控制台</small></div>
+      {page === "dashboard" && <label className="titlebar-search"><span aria-hidden="true">⌕</span><input aria-label="顶部搜索容器" placeholder="搜索容器或镜像…" value={query} onChange={(event) => setQuery(event.target.value)} /></label>}
       <div className="mac-title-status"><span className={dockerAvailable === false ? "online-dot offline" : "online-dot"} />{dockerAvailable ? "Unraid 已连接" : "正在连接"}</div>
     </header>
     <div className="mac-body">
