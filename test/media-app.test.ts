@@ -7,7 +7,7 @@ import test from "node:test";
 import { createApp } from "../src/server/app.ts";
 import type { AppConfig, ManagedContainer } from "../src/server/types.ts";
 
-async function fixture(failDownload = false) {
+async function fixture(failDownload = false, onDownload?: (url: string) => void, remoteContent?: Buffer) {
   const root = await mkdtemp(join(tmpdir(), "unraid-icon-media-"));
   const configDir = join(root, "config"); const templatesDir = join(root, "templates");
   await mkdir(configDir); await mkdir(templatesDir); await mkdir(join(configDir, "icons"));
@@ -18,7 +18,7 @@ async function fixture(failDownload = false) {
   const container: ManagedContainer = { name: "active", id: "active-id", image: "example/active", state: "running", status: "Up", fileName: "my-active.xml", icon: "old.png",
     displayIcon: "old.png", displayIconSource: "template", editable: true, templateMatch: "name", composeManaged: false, templateState: "linked", iconCandidates: [] };
   const png = await sharp({ create: { width: 4, height: 4, channels: 4, background: "#ff6600" } }).png().toBuffer();
-  const app = createApp(config, { listManagedContainers: async () => ({ containers: [container], dockerAvailable: true }), downloadRemoteImage: async () => { if (failDownload) throw new Error("remote failed"); return png; } });
+  const app = createApp(config, { listManagedContainers: async () => ({ containers: [container], dockerAvailable: true }), downloadRemoteImage: async (url) => { onDownload?.(url); if (failDownload) throw new Error("remote failed"); return remoteContent ?? png; } });
   return { app, config, png };
 }
 
@@ -73,6 +73,23 @@ test("uploads, imports, groups, downloads and deletes wallpapers", async () => {
     assert.equal(imported.statusCode, 201);
     const removed = await app.inject({ method: "DELETE", url: `/api/wallpapers/${fileName}` });
     assert.equal(removed.statusCode, 204);
+  } finally { await app.close(); }
+});
+
+test("imports Huaban modalImg WebP links and uses a short browser download name", async () => {
+  const webp = await sharp({ create: { width: 4, height: 4, channels: 4, background: "#2288ff" } }).webp().toBuffer();
+  let requestedUrl = "";
+  const { app } = await fixture(false, (url) => { requestedUrl = url; }, webp);
+  try {
+    const image = `https://gd-hbimg-edge.huabanimg.com/example?auth_key=${Math.floor(Date.now() / 1000) + 3600}-signature`;
+    const shared = `https://huaban.com/pins/6675766391?modalImg=${encodeURIComponent(image)}`;
+    const imported = await app.inject({ method: "POST", url: "/api/wallpapers/import", payload: { url: shared } });
+    assert.equal(imported.statusCode, 201);
+    assert.equal(requestedUrl, image);
+    const fileName = imported.json().fileName as string;
+    assert.match(fileName, /^[a-f0-9]{64}\.webp$/);
+    const downloaded = await app.inject({ method: "GET", url: `/api/wallpapers/file/${fileName}?download=1` });
+    assert.equal(downloaded.headers["content-disposition"], `attachment; filename="wallpaper-${fileName.slice(0, 12)}.webp"`);
   } finally { await app.close(); }
 });
 

@@ -10,7 +10,7 @@ import { listManagedContainers } from "./container-service.js";
 import { createGeneratedTemplate, getTemplate, listTemplates, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "./template-service.js";
 import { deleteStoredIcon, listStoredIcons, storeUploadedIcon } from "./icon-service.js";
 import { validateIconUrl } from "./icon-validation.js";
-import { downloadRemoteImage } from "./remote-image-service.js";
+import { downloadRemoteImage, resolveWallpaperSourceUrl } from "./remote-image-service.js";
 import { deleteWallpaper, listWallpaperFiles, storeWallpaper, wallpaperPath } from "./wallpaper-service.js";
 import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, resolveOwnUploadedIconPng, restoreUnraidIconCache, snapshotUnraidIconCache, writeUnraidIconCache } from "./unraid-cache-service.js";
 import { synchronizeContainerIcon } from "./container-sync-service.js";
@@ -344,7 +344,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     try {
       const body = request.body as { url?: unknown; groupId?: unknown };
       if (typeof body?.url !== "string" || !body.url.trim()) throw new Error("壁纸 URL 不能为空");
-      const content = await downloadImage(validateIconUrl(body.url.trim()), config.maxWallpaperBytes ?? config.maxUploadBytes);
+      const content = await downloadImage(validateIconUrl(resolveWallpaperSourceUrl(body.url.trim())), config.maxWallpaperBytes ?? config.maxUploadBytes);
       const stored = await storeWallpaper(config, content);
       const groupId = body.groupId === null || body.groupId === undefined ? null : Number(body.groupId);
       database.setWallpaperGroup(stored.fileName, groupId);
@@ -368,7 +368,9 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     const fileName = (request.params as { fileName: string }).fileName;
     if (!/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(fileName)) return reply.code(404).send({ message: "壁纸不存在" });
     const extension = fileName.split(".").pop();
-    if ((request.query as { download?: string }).download === "1") reply.header("content-disposition", `attachment; filename="${fileName}"`);
+    if ((request.query as { download?: string }).download === "1") {
+      reply.header("content-disposition", `attachment; filename="wallpaper-${fileName.slice(0, 12)}.${extension}"`);
+    }
     try {
       const handle = await open(wallpaperPath(config, fileName), constants.O_RDONLY | constants.O_NOFOLLOW);
       if (!(await handle.stat()).isFile()) { await handle.close(); return reply.code(404).send({ message: "壁纸不存在" }); }
