@@ -501,6 +501,13 @@ export function App() {
 
   return <div className="app-shell">
     <div className="wallpaper-backdrop" aria-hidden="true" />
+    <div className="mac-window">
+    <header className="mac-titlebar" aria-label="应用标题栏">
+      <div className="traffic-lights" aria-hidden="true"><i /><i /><i /></div>
+      <div className="mac-title"><img src="/project-icon.png" alt="" /> <span>Unraid Icon Studio</span><small>管理控制台</small></div>
+      <div className="mac-title-status"><span className={dockerAvailable === false ? "online-dot offline" : "online-dot"} />{dockerAvailable ? "Unraid 已连接" : "正在连接"}</div>
+    </header>
+    <div className="mac-body">
     <aside className="sidebar">
       <button className="brand" onClick={() => setPage("dashboard")} aria-label="回到容器总览"><img className="brand-mark" src="/project-icon.png" alt="" /><span><b>Icon Manager</b><small>for Unraid</small></span></button>
       <nav aria-label="主导航"><button className={page === "dashboard" ? "nav-item active" : "nav-item"} onClick={() => setPage("dashboard")}><span>▦</span> 容器图标</button><button className={page === "vms" ? "nav-item active" : "nav-item"} onClick={() => setPage("vms")}><span>◇</span> 虚拟机图标</button><button className={page === "gallery" ? "nav-item active" : "nav-item"} onClick={() => setPage("gallery")}><span>▧</span> 图标图库</button><button className={page === "wallpapers" ? "nav-item active" : "nav-item"} onClick={() => setPage("wallpapers")}><span>▤</span> 壁纸图库</button><button className="nav-item" onClick={() => { setPage("dashboard"); window.setTimeout(() => document.getElementById("audit-history")?.scrollIntoView({ behavior: "smooth" }), 0); }}><span>≡</span> 变更记录</button><button className={page === "about" ? "nav-item active" : "nav-item"} onClick={() => setPage("about")}><span>♡</span> 关于项目</button></nav>
@@ -537,5 +544,7 @@ export function App() {
       {page === "gallery" && selectedGalleryIcons.size === 1 && <div className="rename-selection"><button className="secondary" disabled={busy} onClick={() => { const asset = gallery.find((item) => selectedGalleryIcons.has(item.fileName)); if (asset) void renameIcon(asset); }}>重命名所选图标</button></div>}
       {page === "wallpapers" && selectedGalleryWallpapers.size === 1 && <div className="rename-selection"><button className="secondary" disabled={busy} onClick={() => { const asset = wallpapers.find((item) => selectedGalleryWallpapers.has(item.fileName)); if (asset) void renameWallpaper(asset); }}>重命名所选壁纸</button></div>}
     </main>
+    </div>
+    </div>
   </div>;
 }
