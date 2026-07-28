@@ -90,7 +90,7 @@ docker pull waning/unraid-icon-manager:latest
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.26
+    image: waning/unraid-icon-manager:v0.1.24
     container_name: unraid-icon-manager
 
     ports:
@@ -172,7 +172,7 @@ docker compose up -d
 curl http://你的_UNRAID_IP:8787/api/health
 ```
 
-正常结果为 `{ "ok": true, "version": "0.1.26" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
+正常结果为 `{ "ok": true, "version": "0.1.24" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
 
 #### Compose 服务字段逐项说明
 

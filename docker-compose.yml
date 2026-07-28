@@ -1,6 +1,6 @@
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.26
+    image: waning/unraid-icon-manager:v0.1.24
     container_name: unraid-icon-manager
 
     ports:

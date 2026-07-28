@@ -76,23 +76,6 @@ test("uploads, imports, groups, downloads and deletes wallpapers", async () => {
   } finally { await app.close(); }
 });
 
-test("imports Huaban modalImg WebP links and uses a short browser download name", async () => {
-  const webp = await sharp({ create: { width: 4, height: 4, channels: 4, background: "#2288ff" } }).webp().toBuffer();
-  let requestedUrl = "";
-  const { app } = await fixture(false, (url) => { requestedUrl = url; }, webp);
-  try {
-    const image = `https://gd-hbimg-edge.huabanimg.com/example?auth_key=${Math.floor(Date.now() / 1000) + 3600}-signature`;
-    const shared = `https://huaban.com/pins/6675766391?modalImg=${encodeURIComponent(image)}`;
-    const imported = await app.inject({ method: "POST", url: "/api/wallpapers/import", payload: { url: shared } });
-    assert.equal(imported.statusCode, 201);
-    assert.equal(requestedUrl, image);
-    const fileName = imported.json().fileName as string;
-    assert.match(fileName, /^[a-f0-9]{64}\.webp$/);
-    const downloaded = await app.inject({ method: "GET", url: `/api/wallpapers/file/${fileName}?download=1` });
-    assert.equal(downloaded.headers["content-disposition"], `attachment; filename="wallpaper-${fileName.slice(0, 12)}.webp"`);
-  } finally { await app.close(); }
-});
-
 test("creates icon groups, uploads into a group and moves icons", async () => {
   const { app, png } = await fixture();
   try {
