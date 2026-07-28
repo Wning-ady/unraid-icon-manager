@@ -275,6 +275,15 @@ npm run check
 
 请阅读 [SECURITY.md](SECURITY.md)。外部图片导入只接受经校验的公网 HTTP(S) 地址与栅格图片，阻止本机/私网/保留地址并限制 DNS、连接、总时长、重定向和字节数；考虑到公开图标站常使用自定义端口，公网自定义端口仍受支持。Docker socket、模板、两个缓存与 Compose Manager 项目挂载都属于特权主机访问。只挂载插件实际配置的 `PROJECTS_FOLDER`，不要扩大到整个 `/mnt/user`、`/boot` 或 `/var/lib/docker`。请私下报告漏洞，且不要上传包含私有 URL、路径、挂载或密钥的诊断信息。
 
+## 支持项目
+
+如果这个工具对你有帮助，欢迎扫码支持后续维护。
+
+<div align="center">
+  <img src="assets/support/wechat-pay.png" width="220" alt="微信收款码">
+  <img src="assets/support/alipay.png" width="220" alt="支付宝收款码">
+</div>
+
 ## 许可证
 
 [MIT](LICENSE)
