@@ -14,8 +14,16 @@
     <a href="#升级与回滚">升级与回滚</a> ·
     <a href="SECURITY.md">安全说明</a>
   </p>
-  <img src="docs/screenshot.svg" alt="Unraid Icon Manager 管理界面预览" width="760">
+  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.25 桌面端容器图标总览" width="960">
+  <p><sub>真实 Unraid 环境中的桌面端容器图标总览</sub></p>
 </div>
+
+<details>
+  <summary><strong>查看手机端界面</strong></summary>
+  <p align="center">
+    <img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.25 手机端界面" width="320">
+  </p>
+</details>
 
 > [!IMPORTANT]
 > **这是一个纯 AI 项目。**作者本人完全不会编程，只是有点强迫症，看到 Unraid 里有些容器没有图标就很难受，于是靠 AI 一点一点把这个工具做了出来。
@@ -26,6 +34,16 @@
 
 > [!WARNING]
 > 本服务只能放在可信局域网。它需要 Docker socket；启用 VM 图标时还需要读写 libvirt socket，该 socket 等同完整虚拟机管理权限。`v0.1.22` 起生产启动必须设置 `ADMIN_TOKEN`，管理 API 需要登录与同源安全校验。不要把服务端口或反向代理暴露到公网。
+
+## v0.1.25 更新
+
+- 管理界面升级为全屏 macOS 玻璃拟态布局，取消悬浮窗口边框与左上角装饰圆点，内容直接铺满浏览器。
+- 缩窄桌面侧边栏并压缩容器、虚拟机卡片；宽屏一行可展示 7–8 个项目，查找图标更快。
+- 修复白天模式中蓝色色块与文字对比不足的问题，浅色、深色和壁纸背景下的内容都更清楚。
+- 手机端重排为标题、品牌、横向导航和内容区，卡片默认双列且页面不再横向溢出。
+- 容器、虚拟机、图库、壁纸、批量操作和审计回滚功能保持与 `v0.1.24` 一致。
+
+完整记录见 [CHANGELOG.md](CHANGELOG.md)，安装包见 [v0.1.25 Release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.25)。
 
 ## 功能
 

@@ -4,7 +4,15 @@
 
 <p align="center"><img src="docs/icon.png" alt="Unraid Icon Manager project icon" width="150"></p>
 
-<p align="center"><img src="docs/screenshot.svg" alt="Unraid Icon Manager dashboard preview" width="760"></p>
+<p align="center">
+  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.25 desktop container dashboard" width="960">
+  <br><sub>Desktop container dashboard captured from a live Unraid installation</sub>
+</p>
+
+<details>
+  <summary><strong>View the mobile layout</strong></summary>
+  <p align="center"><img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.25 mobile layout" width="320"></p>
+</details>
 
 > [!NOTE]
 > This is a purely AI-built project. The maintainer does not know programming; he simply could not stand seeing containers without icons in Unraid and kept prompting until the problem was solved.
@@ -13,6 +21,16 @@ Bulk-manage icons for **currently deployed** Unraid Docker containers from a sma
 
 > [!WARNING]
 > Keep this service on a trusted LAN. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. The sync action uses the Docker API to recreate selected containers. A Docker socket remains highly sensitive even when mounted `:ro`; do not expose this service, its port, or an unauthenticated reverse proxy to the public internet. Production startup requires a random 24+ character `ADMIN_TOKEN`; management APIs require a browser login and same-origin CSRF validation.
+
+## What's new in v0.1.25
+
+- Rebuilt the management UI as a full-screen macOS-inspired glass workspace, without a floating window frame or decorative traffic-light dots.
+- Narrowed the desktop navigation and compacted container and VM cards so wide screens can show seven to eight items per row.
+- Fixed low-contrast blue surfaces in light mode while retaining dark-mode and wallpaper support.
+- Reflowed the mobile layout into stacked title, brand, navigation, and content regions with a two-column card grid and no horizontal page overflow.
+- Preserved all container, VM, gallery, wallpaper, batch-operation, audit, and rollback behavior from v0.1.24.
+
+See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.25 release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.25) for installation assets.
 
 ## Features
 
