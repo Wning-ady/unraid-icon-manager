@@ -773,6 +773,14 @@ button.card-open:focus-visible {
 
 /* Mobile shell: stack the title bar, navigation and workspace vertically. */
 @media (max-width: 700px) {
+  .mac-window {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
   .mac-titlebar {
     position: relative;
     top: auto;
