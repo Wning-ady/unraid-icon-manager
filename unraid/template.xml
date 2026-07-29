@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>unraid-icon-manager</Name>
-  <Repository>waning/unraid-icon-manager:v0.1.25</Repository>
+  <Repository>waning/unraid-icon-manager:latest</Repository>
   <Registry>https://hub.docker.com/r/waning/unraid-icon-manager</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Wning-ady/unraid-icon-manager/issues</Support>
   <Project>https://github.com/Wning-ady/unraid-icon-manager</Project>
-  <Overview>Manage Docker and VM icons from one web UI, with a searchable grouped icon gallery. Docker Sync updates Compose Manager metadata and recreates only selected containers; VM icons use Unraid libvirt metadata without restarting VMs. Trusted LAN only.</Overview>
+  <Overview>Manage Docker and VM icons from one web UI, with a searchable grouped icon gallery. Right-click a container to replace its icon, repair a missing live label, or start/restart it after confirmation. Docker Sync updates Compose Manager metadata and recreates only selected containers; VM icons use Unraid libvirt metadata without restarting VMs. Trusted LAN only.</Overview>
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
   <Icon>https://raw.githubusercontent.com/Wning-ady/unraid-icon-manager/main/docs/icon.png</Icon>

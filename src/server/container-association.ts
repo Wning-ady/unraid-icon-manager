@@ -22,9 +22,20 @@ function normalizedRepository(repository: string): string {
   return lastSegment.includes(":") ? repository : `${repository}:latest`;
 }
 
+function repositoryName(repository: string): string {
+  const withoutDigest = repository.split("@", 1)[0];
+  const lastSlash = withoutDigest.lastIndexOf("/");
+  const lastColon = withoutDigest.lastIndexOf(":");
+  return lastColon > lastSlash ? withoutDigest.slice(0, lastColon) : withoutDigest;
+}
+
 function findTemplate(templates: TemplateRecord[], name: string, image: string): { template: TemplateRecord; match: Exclude<TemplateMatch, null> } | null {
   const exactName = templates.find((template) => template.name === name && template.repository && normalizedRepository(template.repository) === normalizedRepository(image));
   if (exactName) return { template: exactName, match: "name" };
+  // Generated metadata belongs to this container name. Keep it linked when an
+  // image update changes the tag so refresh can restore the immutable label.
+  const generatedByName = templates.filter((template) => template.generated && template.name === name && template.repository && repositoryName(template.repository) === repositoryName(image));
+  if (generatedByName.length === 1) return { template: generatedByName[0], match: "name" };
   return null;
 }
 
@@ -80,6 +91,7 @@ export function associateManagedContainers(templates: TemplateRecord[], summarie
         icon: associated?.template.icon ?? null,
         displayIcon: associated?.template.icon ?? null,
         displayIconSource: associated?.template.icon ? "template" as const : null,
+        iconNeedsSync: false,
         templateMatch: associated?.match ?? null,
         editable: true,
         composeManaged,

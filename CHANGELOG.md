@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.26
+
+- Add a container right-click menu with start/restart confirmations and operation notifications.
+- Detect missing or stale live Unraid icon labels, keep the saved icon visible, and offer one-click repair synchronization.
+- Write Docker Manager icon caches after container recreation so image updates no longer erase the refreshed icon.
+- Compact gallery selection controls and switch the Unraid XML template to the rolling `latest` image.
+
 ## 0.1.25
 
 - Rebuild the Web UI as a full-screen macOS-inspired glass workspace without the floating window frame or decorative traffic-light dots.

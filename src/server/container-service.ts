@@ -11,8 +11,10 @@ export function resolveUnraidLabelIcon(unraidDockerUrl: string | undefined, rawI
     const icon = new URL(rawIcon);
     if (icon.protocol === "http:" || icon.protocol === "https:") {
       if (unraidDockerUrl && containerName && /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(containerName)) {
-        const dockerPage = new URL(unraidDockerUrl);
-        return new URL(`/state/plugins/dynamix.docker.manager/images/${encodeURIComponent(containerName)}-icon.png`, dockerPage.origin).toString();
+        try {
+          const dockerPage = new URL(unraidDockerUrl);
+          return new URL(`/state/plugins/dynamix.docker.manager/images/${encodeURIComponent(containerName)}-icon.png`, dockerPage.origin).toString();
+        } catch { /* A relative Docker page URL cannot provide an Unraid origin. */ }
       }
       return icon.toString();
     }
@@ -24,6 +26,64 @@ export function resolveUnraidLabelIcon(unraidDockerUrl: string | undefined, rawI
     const dockerPage = new URL(unraidDockerUrl);
     return new URL(rawIcon, dockerPage.origin).toString();
   } catch { return null; }
+}
+
+export type ContainerAction = "start" | "restart";
+
+export interface ContainerActionResult {
+  containerId: string;
+  containerName: string;
+  action: ContainerAction;
+  changed: boolean;
+  notice: string;
+}
+
+interface ActionContainerLike {
+  inspect(): Promise<{ State?: { Running?: boolean } }>;
+  start(): Promise<unknown>;
+  restart(options?: Record<string, unknown>): Promise<unknown>;
+}
+
+interface ActionDockerLike {
+  getContainer(id: string): ActionContainerLike;
+}
+
+/** Starts or restarts one currently deployed container selected by immutable Docker id. */
+export async function performContainerAction(
+  container: ManagedContainer,
+  action: ContainerAction,
+  docker: ActionDockerLike = new Docker({ socketPath: "/var/run/docker.sock" })
+): Promise<ContainerActionResult> {
+  const target = docker.getContainer(container.id);
+  const current = await target.inspect();
+  if (action === "start") {
+    if (current.State?.Running) {
+      return { containerId: container.id, containerName: container.name, action, changed: false, notice: `${container.name} 已在运行` };
+    }
+    await target.start();
+    return { containerId: container.id, containerName: container.name, action, changed: true, notice: `${container.name} 已启动` };
+  }
+  if (!current.State?.Running) {
+    const error = new Error(`${container.name} 当前不是运行中，无法执行重启；请先启动`) as Error & { statusCode: number };
+    error.statusCode = 409;
+    throw error;
+  }
+  await target.restart({ t: 15 });
+  return { containerId: container.id, containerName: container.name, action, changed: true, notice: `${container.name} 已重启` };
+}
+
+export function resolveContainerDisplayIcon(
+  unraidDockerUrl: string | undefined,
+  containerName: string,
+  rawLabelIcon: string | undefined,
+  cacheAvailable: boolean
+): Pick<ManagedContainer, "displayIcon" | "displayIconSource"> {
+  const labelIcon = resolveUnraidLabelIcon(unraidDockerUrl, rawLabelIcon, containerName);
+  if (labelIcon && cacheAvailable) {
+    return { displayIcon: `/api/containers/icon-cache/${encodeURIComponent(containerName)}`, displayIconSource: "unraid-cache" };
+  }
+  if (labelIcon) return { displayIcon: labelIcon, displayIconSource: "unraid-label" };
+  return { displayIcon: null, displayIconSource: null };
 }
 
 export async function listManagedContainers(config: AppConfig): Promise<{ containers: ManagedContainer[]; dockerAvailable: boolean }> {
@@ -50,15 +110,22 @@ export async function listManagedContainers(config: AppConfig): Promise<{ contai
   const containers = dockerAvailable ? associateManagedContainers(templates, summaries, imageLabels) : [];
   const summariesById = new Map(summaries.map((summary) => [summary.Id, summary]));
   await Promise.all(containers.map(async (container) => {
-    if (await findUnraidIconCache(config, container.name)) {
-      container.displayIcon = `/api/containers/icon-cache/${encodeURIComponent(container.name)}`;
-      container.displayIconSource = "unraid-cache";
-      return;
-    }
-    const labelIcon = resolveUnraidLabelIcon(config.unraidDockerUrl, summariesById.get(container.id)?.Labels?.["net.unraid.docker.icon"], container.name);
-    if (labelIcon) {
-      container.displayIcon = labelIcon;
-      container.displayIconSource = "unraid-label";
+    const rawLabelIcon = summariesById.get(container.id)?.Labels?.["net.unraid.docker.icon"];
+    // A template or stale cache is not proof that the running container still
+    // carries the immutable label Unraid needs after an image update.
+    const liveIcon = resolveContainerDisplayIcon(
+      config.unraidDockerUrl,
+      container.name,
+      rawLabelIcon,
+      Boolean(await findUnraidIconCache(config, container.name))
+    );
+    Object.assign(container, liveIcon);
+    container.iconNeedsSync = Boolean(container.icon && (!rawLabelIcon || rawLabelIcon !== container.icon));
+    // Keep a saved template icon visible in the manager while clearly marking
+    // that Unraid's live Docker label still needs synchronization.
+    if (!liveIcon.displayIcon && container.icon) {
+      container.displayIcon = container.icon;
+      container.displayIconSource = "template";
     }
   }));
   return {
