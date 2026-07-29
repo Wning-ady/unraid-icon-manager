@@ -803,12 +803,22 @@ button.card-open:focus-visible {
     height: auto;
     min-height: 0;
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
+    align-content: flex-start;
+    row-gap: .28rem;
     overflow: visible;
+  }
+
+  .sidebar .brand {
+    flex: 1 1 100%;
+    width: 100%;
+    margin-bottom: .1rem;
   }
 
   .sidebar nav {
     flex: 1 1 0;
+    flex-basis: 100%;
     width: auto;
     max-width: 100%;
     min-width: 0;
