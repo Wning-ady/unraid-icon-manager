@@ -14,14 +14,14 @@
     <a href="#升级与回滚">升级与回滚</a> ·
     <a href="SECURITY.md">安全说明</a>
   </p>
-  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.25 桌面端容器图标总览" width="960">
+  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.26 桌面端容器图标总览" width="960">
   <p><sub>真实 Unraid 环境中的桌面端容器图标总览</sub></p>
 </div>
 
 <details>
   <summary><strong>查看手机端界面</strong></summary>
   <p align="center">
-    <img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.25 手机端界面" width="320">
+    <img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.26 手机端界面" width="320">
   </p>
 </details>
 
@@ -35,15 +35,14 @@
 > [!WARNING]
 > 本服务只能放在可信局域网。它需要 Docker socket；启用 VM 图标时还需要读写 libvirt socket，该 socket 等同完整虚拟机管理权限。`v0.1.22` 起生产启动必须设置 `ADMIN_TOKEN`，管理 API 需要登录与同源安全校验。不要把服务端口或反向代理暴露到公网。
 
-## v0.1.25 更新
+## v0.1.26 更新
 
-- 管理界面升级为全屏 macOS 玻璃拟态布局，取消悬浮窗口边框与左上角装饰圆点，内容直接铺满浏览器。
-- 缩窄桌面侧边栏并压缩容器、虚拟机卡片；宽屏一行可展示 7–8 个项目，查找图标更快。
-- 修复白天模式中蓝色色块与文字对比不足的问题，浅色、深色和壁纸背景下的内容都更清楚。
-- 手机端重排为标题、品牌、横向导航和内容区，卡片默认双列且页面不再横向溢出。
-- 容器、虚拟机、图库、壁纸、批量操作和审计回滚功能保持与 `v0.1.24` 一致。
+- 容器卡片支持右键菜单，可更换图标、修复图标同步，并通过确认弹窗启动或重启容器。
+- 修复镜像更新或容器重建后 Unraid 图标掉失：先重建目标容器，再写入持久与 RAM 图标缓存。
+- 管理器会保留显示已保存的模板图标，同时明确标记运行标签是否需要重新同步。
+- 缩小图库复选框、元数据与操作按钮；XML 安装模板改用 `latest`。
 
-完整记录见 [CHANGELOG.md](CHANGELOG.md)，安装包见 [v0.1.25 Release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.25)。
+完整记录见 [CHANGELOG.md](CHANGELOG.md)，安装包见 [v0.1.26 Release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.26)。
 
 ## 功能
 
@@ -54,6 +53,7 @@
 - 每个当前容器都可设置图标：已有匹配模板时更新模板；没有模板时，自动生成带清晰标记和审计记录的专用图标元数据模板，匹配实际容器名与镜像，并避免与现有 `my-*.xml` 文件冲突。
 - 保存阶段不重建容器；用户明确点击同步后，普通容器会仅重建所选容器，Compose Manager 容器还会原子更新对应项目 `docker-compose.override.yml` 中所选服务的图标标签，再仅重建该服务。其他服务、数据卷和 Compose 主文件不受影响；失败时自动恢复原容器与 override。
 - 支持搜索、多选，并可直接点击任意容器卡片打开单容器图标编辑器。
+- 右键容器可更换或修复图标；运行中容器可确认后重启，停止或已创建容器可确认后启动，结果通过页面通知显示。
 - 每次上传或实际使用外部图标 URL 时，都会先下载、校验、规范化为稳定 PNG，按内容去重后持久保存到图标图库；下载失败时不会修改模板。
 - 图标图库支持自定义分组、分类筛选和移动分类，并可复制宿主机/容器根目录；每张图标还可复制自身完整 HTTP 地址、完整宿主机文件路径和完整容器文件路径。
 - 图标与壁纸图库支持批量上传、浏览器选择文件夹扫描、批量删除和显示名称重命名；新上传素材使用短文件名保存，已使用的旧文件名继续兼容。
@@ -109,7 +109,7 @@ docker pull waning/unraid-icon-manager:latest
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.25
+    image: waning/unraid-icon-manager:v0.1.26
     container_name: unraid-icon-manager
 
     ports:
@@ -191,7 +191,7 @@ docker compose up -d
 curl http://你的_UNRAID_IP:8787/api/health
 ```
 
-正常结果为 `{ "ok": true, "version": "0.1.25" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
+正常结果为 `{ "ok": true, "version": "0.1.26" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
 
 #### Compose 服务字段逐项说明
 

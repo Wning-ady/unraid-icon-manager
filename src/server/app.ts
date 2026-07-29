@@ -6,7 +6,7 @@ import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import type { AppConfig, UiSettings } from "./types.js";
 import { AppDatabase } from "./database.js";
-import { listManagedContainers } from "./container-service.js";
+import { listManagedContainers, performContainerAction, type ContainerAction } from "./container-service.js";
 import { createGeneratedTemplate, getTemplate, listTemplates, removeGeneratedTemplate, restoreTemplate, updateTemplateIcon } from "./template-service.js";
 import { deleteStoredIcon, listStoredIcons, storeUploadedIcon } from "./icon-service.js";
 import { validateIconUrl } from "./icon-validation.js";
@@ -24,7 +24,9 @@ function stringArray(value: unknown, label: string): string[] {
 }
 
 function httpError(error: unknown): { statusCode: number; message: string } {
-  return { statusCode: 400, message: error instanceof Error ? error.message : "Invalid request" };
+  const candidate = (error as { statusCode?: unknown } | null)?.statusCode;
+  const statusCode = typeof candidate === "number" && Number.isInteger(candidate) && candidate >= 400 && candidate <= 599 ? candidate : 400;
+  return { statusCode, message: error instanceof Error ? error.message : "Invalid request" };
 }
 
 function operationError(original: unknown, recoveryErrors: unknown[]): Error {
@@ -52,7 +54,7 @@ function ownIconFile(config: AppConfig, value: string): string | null {
   return ICON_FILE_NAME_PATTERN.test(fileName) && existsSync(join(config.iconsDir, fileName)) ? fileName : null;
 }
 
-export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage; synchronizeContainerIcon?: typeof synchronizeContainerIcon } = {}) {
+export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage; synchronizeContainerIcon?: typeof synchronizeContainerIcon; performContainerAction?: typeof performContainerAction } = {}) {
   const bodyBytes = Math.max(config.maxUploadBytes, config.maxWallpaperBytes ?? config.maxUploadBytes);
   const app = Fastify({ logger: true, bodyLimit: Math.ceil(bodyBytes * 4 / 3) + 16_384 });
   const access = new AccessControl(config);
@@ -62,6 +64,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
   const listContainers = dependencies.listManagedContainers ?? listManagedContainers;
   const downloadImage = dependencies.downloadRemoteImage ?? downloadRemoteImage;
   const syncIcon = dependencies.synchronizeContainerIcon ?? synchronizeContainerIcon;
+  const runContainerAction = dependencies.performContainerAction ?? performContainerAction;
   let iconMutationTail = Promise.resolve();
   let queuedMutations = 0;
   async function withIconMutation<T>(operation: () => Promise<T>): Promise<T> {
@@ -155,6 +158,17 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
   app.get("/api/containers", async () => listContainers(config));
+  app.post("/api/containers/:id/actions", async (request, reply) => {
+    return withIconMutation(async () => { try {
+      const containerId = (request.params as { id: string }).id;
+      const action = (request.body as { action?: unknown })?.action;
+      if (action !== "start" && action !== "restart") throw new Error("action 必须是 start 或 restart");
+      const containers = (await listContainers(config)).containers;
+      const container = containers.find((entry) => entry.id === containerId);
+      if (!container) return reply.code(404).send({ message: `容器 ${containerId.slice(0, 12)} 已不存在` });
+      return await runContainerAction(container, action as ContainerAction);
+    } catch (error) { return reply.code(httpError(error).statusCode).send(httpError(error)); } });
+  });
   app.get("/api/vms", async () => listVirtualMachines(config));
   app.get("/api/vms/icon/:fileName", async (request, reply) => {
     const fileName = (request.params as { fileName: string }).fileName;
@@ -408,6 +422,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         const container = byId.get(id);
         if (!container) throw new Error(`Container ${id.slice(0, 12)} is no longer deployed`);
         if (!container.icon) throw new Error(`${container.name} 没有已保存的图标，无法同步`);
+        const result = await syncIcon(config, container, container.icon);
         if (container.icon?.startsWith("http://") || container.icon?.startsWith("https://")) {
           const png = await resolveOwnUploadedIconPng(config, container.icon);
           if (png) await writeUnraidIconCache(config, container.name, png);
@@ -415,7 +430,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
         } else {
           await invalidateUnraidIconCache(config, container.name);
         }
-        results.push(await syncIcon(config, container, container.icon));
+        results.push(result);
       }
       const recreated = results.filter((result) => result.recreated).length;
       const composeUpdated = results.filter((result) => result.composeOverrideUpdated).length;

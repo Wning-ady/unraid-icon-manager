@@ -8,7 +8,7 @@ import type { AppConfig, ManagedContainer } from "../src/server/types.ts";
 
 const activeContainer: ManagedContainer = {
   name: "active", id: "active-id", image: "example/active", state: "running", status: "Up 1 minute",
-  fileName: "my-active.xml", icon: "old.png", displayIcon: "old.png", displayIconSource: "template", editable: true, templateMatch: "name", composeManaged: false, templateState: "linked", iconCandidates: []
+  fileName: "my-active.xml", icon: "old.png", displayIcon: "old.png", displayIconSource: "template", iconNeedsSync: false, editable: true, templateMatch: "name", composeManaged: false, templateState: "linked", iconCandidates: []
 };
 
 test("applies by deployed container id, invalidates caches, and rejects removed containers", async () => {
@@ -113,5 +113,32 @@ test("creates and rolls back icon metadata for a deployed container without a te
     const restored = await app.inject({ method: "POST", url: `/api/audits/${auditId}/restore`, payload: {} });
     assert.equal(restored.statusCode, 200);
     await assert.rejects(access(join(templatesDir, result.templateFile)));
+  } finally { await app.close(); }
+});
+
+test("routes container start and restart actions and validates the target", async () => {
+  const root = await mkdtemp(join(tmpdir(), "unraid-icon-manager-actions-"));
+  const configDir = join(root, "config"); const templatesDir = join(root, "templates");
+  await mkdir(configDir); await mkdir(templatesDir); await mkdir(join(configDir, "icons"));
+  const config: AppConfig = { port: 8787, host: "127.0.0.1", configDir, templatesDir, iconsDir: join(configDir, "icons"), iconHostRoot: "/mnt/user/icons", backupsDir: join(configDir, "backups"), maxUploadBytes: 1024 };
+  const calls: string[] = [];
+  const app = createApp(config, {
+    listManagedContainers: async () => ({ containers: [activeContainer], dockerAvailable: true }),
+    performContainerAction: async (container, action) => {
+      calls.push(`${container.id}:${action}`);
+      return { containerId: container.id, containerName: container.name, action, changed: true, notice: `${action} ok` };
+    }
+  });
+  try {
+    const start = await app.inject({ method: "POST", url: "/api/containers/active-id/actions", payload: { action: "start" } });
+    assert.equal(start.statusCode, 200);
+    assert.equal(start.json().notice, "start ok");
+    const restart = await app.inject({ method: "POST", url: "/api/containers/active-id/actions", payload: { action: "restart" } });
+    assert.equal(restart.statusCode, 200);
+    assert.deepEqual(calls, ["active-id:start", "active-id:restart"]);
+    const invalid = await app.inject({ method: "POST", url: "/api/containers/active-id/actions", payload: { action: "pause" } });
+    assert.equal(invalid.statusCode, 400);
+    const missing = await app.inject({ method: "POST", url: "/api/containers/missing/actions", payload: { action: "start" } });
+    assert.equal(missing.statusCode, 404);
   } finally { await app.close(); }
 });

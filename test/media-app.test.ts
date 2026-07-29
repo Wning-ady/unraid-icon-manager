@@ -16,7 +16,7 @@ async function fixture(failDownload = false, onDownload?: (url: string) => void,
     wallpapersDir: join(configDir, "wallpapers"), wallpaperHostRoot: "/mnt/user/appdata/tool/wallpapers", backupsDir: join(configDir, "backups"), maxUploadBytes: 1024 * 1024,
     maxWallpaperBytes: 2 * 1024 * 1024, publicBaseUrl: "http://unraid:8787" };
   const container: ManagedContainer = { name: "active", id: "active-id", image: "example/active", state: "running", status: "Up", fileName: "my-active.xml", icon: "old.png",
-    displayIcon: "old.png", displayIconSource: "template", editable: true, templateMatch: "name", composeManaged: false, templateState: "linked", iconCandidates: [] };
+    displayIcon: "old.png", displayIconSource: "template", iconNeedsSync: false, editable: true, templateMatch: "name", composeManaged: false, templateState: "linked", iconCandidates: [] };
   const png = await sharp({ create: { width: 4, height: 4, channels: 4, background: "#ff6600" } }).png().toBuffer();
   const app = createApp(config, { listManagedContainers: async () => ({ containers: [container], dockerAvailable: true }), downloadRemoteImage: async (url) => { onDownload?.(url); if (failDownload) throw new Error("remote failed"); return remoteContent ?? png; } });
   return { app, config, png };

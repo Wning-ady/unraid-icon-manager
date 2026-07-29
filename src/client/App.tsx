@@ -9,6 +9,7 @@ interface Container {
   icon: string | null;
   displayIcon: string | null;
   displayIconSource: "unraid-cache" | "unraid-label" | "template" | null;
+  iconNeedsSync: boolean;
   image: string;
   state: string;
   status: string;
@@ -24,6 +25,10 @@ interface WallpaperGroup { id: number; name: string; createdAt: string; }
 interface StoredWallpaper { fileName: string; displayName: string | null; previewUrl: string; downloadUrl: string; url: string; bytes: number; width: number; height: number; mimeType: string; groupId: number | null; createdAt: string; }
 interface AboutMeta { version: string; githubUrl: string; iconHostRoot: string; iconContainerRoot: string; wallpaperHostRoot: string; wallpaperContainerRoot: string; }
 interface UiSettings { theme: "light" | "dark"; wallpaperFileName: string | null; glassBlur: number; surfaceOpacity: number; }
+type ContainerAction = "start" | "restart";
+interface ContainerContextMenu { container: Container; x: number; y: number; }
+interface ContainerActionPrompt { container: Container; action: ContainerAction; }
+interface ActionNotification { type: "success" | "error"; message: string; }
 
 function iconPreviewSource(value: string): string | null {
   if (/^https?:\/\//i.test(value)) return value;
@@ -64,11 +69,12 @@ function stateLabel(state: string): string {
 
 function templateNote(container: Container): string {
   const template = container.templateState === "linked" ? "已关联 Unraid 模板" : container.templateState === "generated" ? "使用本工具生成的图标元数据模板" : "首次保存将创建 Unraid 模板";
-  return container.composeManaged ? `Compose Manager 容器 · ${template}；保存后同步会更新 override，并只重建此容器` : template;
+  const sync = container.iconNeedsSync ? "；运行图标标签待同步" : "";
+  return container.composeManaged ? `Compose Manager 容器 · ${template}；保存后同步会更新 override，并只重建此容器${sync}` : `${template}${sync}`;
 }
 
 function ContainerCardBody({ container }: { container: Container }) {
-  return <><ContainerIcon value={container.displayIcon} /><div className="card-content"><div className="card-topline"><strong>{container.name}</strong><span className={`state ${container.state}`} title={container.status}>{stateLabel(container.state)}</span></div><p className="image-name">{container.image}</p><p className={`template-note ${container.templateState === "will-create" ? "will-create" : "editable"}`}>{templateNote(container)}</p></div></>;
+  return <><ContainerIcon value={container.displayIcon} /><div className="card-content"><div className="card-topline"><strong>{container.name}</strong><span className={`state ${container.state}`} title={container.status}>{stateLabel(container.state)}</span></div><p className="image-name">{container.image}</p><p className={`template-note ${container.iconNeedsSync ? "will-create" : container.templateState === "will-create" ? "will-create" : "editable"}`}>{templateNote(container)}</p></div></>;
 }
 
 function iconFileName(value: string): string {
@@ -146,6 +152,10 @@ export function App() {
   const [vmIcon, setVmIcon] = useState("");
   const [vmError, setVmError] = useState("");
   const [showVmGallery, setShowVmGallery] = useState(false);
+  const [containerContextMenu, setContainerContextMenu] = useState<ContainerContextMenu | null>(null);
+  const [containerActionPrompt, setContainerActionPrompt] = useState<ContainerActionPrompt | null>(null);
+  const [containerActionBusy, setContainerActionBusy] = useState(false);
+  const [actionNotification, setActionNotification] = useState<ActionNotification | null>(null);
 
   const refresh = async (message?: string) => {
     try {
@@ -184,6 +194,11 @@ export function App() {
     document.documentElement.style.setProperty("--sidebar-glass-opacity", String((surfaceOpacity / 100) * 0.18));
     document.documentElement.style.setProperty("--active-glass-blur", `${(glassBlur * surfaceOpacity) / 100}px`);
   }, [theme, activeWallpaper, glassBlur, surfaceOpacity]);
+  useEffect(() => {
+    if (!actionNotification) return;
+    const timeout = window.setTimeout(() => setActionNotification(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [actionNotification]);
 
   const filtered = useMemo(() => containers.filter((container) => `${container.name} ${container.image ?? ""}`.toLowerCase().includes(query.toLowerCase())), [containers, query]);
   const linkedCount = containers.filter((container) => container.templateState !== "will-create").length;
@@ -213,6 +228,54 @@ export function App() {
   const selectAll = () => setSelected(new Set(filtered.map((container) => container.id)));
   const closeEditor = () => { if (!busy) { setEditing(null); setModalError(""); setShowModalGallery(false); } };
   const openEditor = (container: Container) => { setEditing(container); setModalIcon(container.icon ?? ""); setModalError(""); setShowModalGallery(false); };
+  const openContainerContextMenu = (event: React.MouseEvent, container: Container) => {
+    event.preventDefault();
+    const width = 236;
+    const height = 236;
+    setContainerContextMenu({
+      container,
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - height - 8))
+    });
+  };
+
+  async function runContainerAction() {
+    if (!containerActionPrompt) return;
+    const { container, action } = containerActionPrompt;
+    const actionLabel = action === "restart" ? "重启" : "启动";
+    setContainerActionBusy(true);
+    try {
+      const result = await request<{ notice?: string }>(`/api/containers/${encodeURIComponent(container.id)}/actions`, {
+        method: "POST",
+        body: JSON.stringify({ action })
+      });
+      setContainerActionPrompt(null);
+      await refresh();
+      setActionNotification({ type: "success", message: result.notice || `${container.name} 已${actionLabel}。` });
+    } catch (error) {
+      setContainerActionPrompt(null);
+      setActionNotification({ type: "error", message: `${actionLabel} ${container.name} 失败：${error instanceof Error ? error.message : "未知错误"}` });
+    } finally {
+      setContainerActionBusy(false);
+    }
+  }
+
+  async function repairContainerIcon(container: Container) {
+    setContainerContextMenu(null);
+    setContainerActionBusy(true);
+    try {
+      const result = await request<{ notice?: string }>("/api/unraid/refresh", {
+        method: "POST",
+        body: JSON.stringify({ containerIds: [container.id] })
+      });
+      await refresh();
+      setActionNotification({ type: "success", message: result.notice || `${container.name} 的图标标签已同步；请刷新 Unraid Docker 页面。` });
+    } catch (error) {
+      setActionNotification({ type: "error", message: `同步 ${container.name} 失败：${error instanceof Error ? error.message : "未知错误"}` });
+    } finally {
+      setContainerActionBusy(false);
+    }
+  }
 
   async function readFileAsDataUrl(file: File): Promise<string> {
     return new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
@@ -529,7 +592,7 @@ export function App() {
       <div><h2>批量设置图标</h2><label>图标 URL 或图库地址<input value={icon} placeholder="https://…" onChange={(e) => setIcon(e.target.value)} /></label><small className="field-help">外部 URL 会在保存前下载、校验并自动加入图库，不会把易失效的原地址直接写入模板。</small><label className="upload">上传 PNG / SVG / WebP<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={upload} disabled={busy} /></label><button className="primary" disabled={busy || !selected.size || !icon.trim()} onClick={() => void apply()}>应用到 {selected.size} 个容器</button></div>
       <div className="preview"><h2>预览</h2><IconPreview value={icon} alt="图标预览" /><small>保存成功后一定会出现在图标图库，并使用稳定的本地地址。</small></div>
     </section>
-    <section><div className="section-title"><div><h2>当前 Docker 容器</h2><span>点击任意容器直接换图标；复选框用于批量选择</span></div><span className="result-count">{filtered.length} 个结果</span></div><div className="container-grid">{filtered.map((container) => <article className={`${selected.has(container.id) ? "card selected" : "card"}`} key={container.id}><label className="card-select"><input aria-label={`批量选择 ${container.name}`} type="checkbox" checked={selected.has(container.id)} onChange={() => toggle(container)} /></label><button className="card-open" aria-label={`更换 ${container.name} 的图标`} onClick={() => openEditor(container)}><ContainerCardBody container={container} /></button></article>)}</div></section>
+    <section><div className="section-title"><div><h2>当前 Docker 容器</h2><span>点击容器更换图标；右键可启动或重启容器；复选框用于批量选择</span></div><span className="result-count">{filtered.length} 个结果</span></div><div className="container-grid">{filtered.map((container) => <article className={`${selected.has(container.id) ? "card selected" : "card"}`} key={container.id} onContextMenu={(event) => openContainerContextMenu(event, container)}><label className="card-select"><input aria-label={`批量选择 ${container.name}`} type="checkbox" checked={selected.has(container.id)} onChange={() => toggle(container)} /></label><button className="card-open" aria-label={`更换 ${container.name} 的图标`} onClick={() => openEditor(container)}><ContainerCardBody container={container} /></button></article>)}</div></section>
     <section className="audit-history" id="audit-history"><div className="section-title"><div><h2>最近变更</h2><span>这里显示每次操作的历史快照；只有当前仍生效的最新记录可以回滚</span></div><span className="result-count">{audits.length} 条</span></div><div className="audit-list">{audits.length ? audits.slice(0, 20).map((audit) => { const canRestore = actionableAuditIds.has(audit.id); const wasReverted = Boolean(audit.revertedByAuditId); return <article className="audit-detail" key={audit.id}><header><div><strong>{audit.containerName}</strong><span className={audit.result === "applied" && !wasReverted ? "audit-result applied" : "audit-result restored"}>{audit.result === "restored" ? "回滚事件" : wasReverted ? "已被回滚" : "已应用"}</span></div><div className="audit-header-actions"><time>{new Date(audit.createdAt).toLocaleString()}</time>{canRestore && <button className="secondary" onClick={() => void restore(audit.id)}>回滚</button>}</div></header><div className="audit-change"><AuditIcon value={audit.oldIcon} label="本次变更前" /><span className="audit-arrow">→</span><AuditIcon value={audit.newIcon} label="本次变更后" /></div><details className="audit-paths"><summary>查看完整图标地址</summary><div><span>本次变更前</span><code>{audit.oldIcon ?? "无图标"}</code><span>本次变更后</span><code>{audit.newIcon ?? "无图标"}</code></div></details></article>; }) : <div className="empty-gallery">还没有图标变更记录。</div>}</div></section>
       </>}
       {page === "vms" && <section className="vm-page"><p className="notice" role="status">{libvirtAvailable ? `已读取 ${vms.length} 台虚拟机；点击卡片即可更换图标，不会重启虚拟机。` : "libvirt 未连接。请按 XML 模板挂载 libvirt socket 与 VM 图标目录。"}</p>{vms.length ? <div className="container-grid">{vms.map((vm) => <article className="card vm-card" key={vm.id}><button className="card-open" onClick={() => { setEditingVm(vm); setVmIcon(vm.icon ? (gallery.find((asset) => asset.fileName === vm.icon)?.icon ?? "") : ""); setVmError(""); setShowVmGallery(false); }}><ContainerIcon value={vm.displayIcon} /><div className="card-content"><div className="card-topline"><strong>{vm.name}</strong><span className={`state ${/running/i.test(vm.state) ? "running" : "exited"}`}>{vm.state}</span></div><p className="image-name">{vm.icon ?? "尚未设置自定义图标"}</p><p className="template-note editable">通过 libvirt metadata 持久修改，无需重启</p></div></button></article>)}</div> : <div className="empty-gallery">{libvirtAvailable ? "当前没有虚拟机。" : "VM 管理功能尚未连接。"}</div>}</section>}
@@ -539,8 +602,11 @@ export function App() {
         <div className="about-intro"><img className="about-logo" src="/project-icon.png" alt="Unraid Icon Manager 项目图标" /><p className="eyebrow">OPEN SOURCE · SELF HOSTED</p><h2>最后的最后</h2><p>如果您觉得 Unraid Icon Manager 对您有帮助，可以请我喝一瓶快乐水。您的支持是我持续维护和更新项目的最大动力！</p><div className="project-meta"><span>当前版本 <b>v{about.version}</b></span><a href={about.githubUrl} target="_blank" rel="noreferrer">在 GitHub 查看项目 ↗</a></div><p className="about-muted">感谢每一位使用、反馈和分享这个项目的朋友。</p></div>
         <div className="donation-grid"><figure><div className="qr-frame"><img src="/donate/alipay.jpg" alt="支付宝赞赏二维码" /></div><figcaption><strong>支付宝</strong><span>扫码请我喝快乐水</span></figcaption></figure><figure><div className="qr-frame"><img src="/donate/wechat.jpg" alt="微信赞赏二维码" /></div><figcaption><strong>微信</strong><span>扫码支持持续维护</span></figcaption></figure></div>
       </section>}
+      {containerContextMenu && <div className="context-menu-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setContainerContextMenu(null); }} onContextMenu={(event) => event.preventDefault()}><div className="container-context-menu" role="menu" aria-label={`${containerContextMenu.container.name} 容器操作`} style={{ left: containerContextMenu.x, top: containerContextMenu.y }}><header><strong>{containerContextMenu.container.name}</strong><span className={`state ${containerContextMenu.container.state}`}>{stateLabel(containerContextMenu.container.state)}</span></header><button role="menuitem" onClick={() => { openEditor(containerContextMenu.container); setContainerContextMenu(null); }}><span aria-hidden="true">▧</span><span>更换图标<small>打开图标编辑器</small></span></button>{containerContextMenu.container.iconNeedsSync && <button role="menuitem" onClick={() => void repairContainerIcon(containerContextMenu.container)} disabled={containerActionBusy}><span aria-hidden="true">⟳</span><span>修复图标同步<small>写回 Docker 标签并刷新缓存</small></span></button>}{containerContextMenu.container.state.toLowerCase() === "running" && containerContextMenu.container.name !== "unraid-icon-manager" && <button role="menuitem" onClick={() => { setContainerActionPrompt({ container: containerContextMenu.container, action: "restart" }); setContainerContextMenu(null); }}><span aria-hidden="true">↻</span><span>重启容器<small>停止后立即重新启动</small></span></button>}{!["running", "paused", "restarting", "removing"].includes(containerContextMenu.container.state.toLowerCase()) && <button role="menuitem" onClick={() => { setContainerActionPrompt({ container: containerContextMenu.container, action: "start" }); setContainerContextMenu(null); }}><span aria-hidden="true">▶</span><span>启动容器<small>使用现有配置启动</small></span></button>}{containerContextMenu.container.name === "unraid-icon-manager" && containerContextMenu.container.state.toLowerCase() === "running" && <p>本工具正在运行，请从 Unraid 页面执行重启。</p>}{["running", "paused", "restarting", "removing"].includes(containerContextMenu.container.state.toLowerCase()) && containerContextMenu.container.name !== "unraid-icon-manager" && containerContextMenu.container.state.toLowerCase() !== "running" && <p>当前状态暂时没有可执行操作。</p>}</div></div>}
+      {containerActionPrompt && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !containerActionBusy) setContainerActionPrompt(null); }}><section className="icon-modal confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="container-action-title" aria-describedby="container-action-description"><div className="modal-header"><div><p className="eyebrow">容器操作确认</p><h2 id="container-action-title">{containerActionPrompt.action === "restart" ? "重启" : "启动"} {containerActionPrompt.container.name}</h2><small>{stateLabel(containerActionPrompt.container.state)} · {containerActionPrompt.container.image}</small></div><button className="modal-close secondary" aria-label="关闭确认弹窗" disabled={containerActionBusy} onClick={() => setContainerActionPrompt(null)}>×</button></div><div className="confirmation-body"><div className="confirmation-symbol" aria-hidden="true">{containerActionPrompt.action === "restart" ? "↻" : "▶"}</div><div><strong>{containerActionPrompt.action === "restart" ? "确认重启这个容器？" : "确认启动这个容器？"}</strong><p id="container-action-description">{containerActionPrompt.action === "restart" ? "容器会短暂中断，然后使用当前配置重新启动。数据卷和图标设置不会被删除。" : "容器将使用当前 Docker 配置启动。数据卷和图标设置不会被修改。"}</p></div></div><div className="modal-actions"><button className="secondary" disabled={containerActionBusy} onClick={() => setContainerActionPrompt(null)}>取消</button><button className="modal-apply" disabled={containerActionBusy} onClick={() => void runContainerAction()}>{containerActionBusy ? "正在处理…" : `确认${containerActionPrompt.action === "restart" ? "重启" : "启动"}`}</button></div></section></div>}
       {editingVm && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setEditingVm(null); }}><section className="icon-modal" role="dialog" aria-modal="true" aria-labelledby="vm-modal-title"><div className="modal-header"><div><p className="eyebrow">虚拟机图标</p><h2 id="vm-modal-title">{editingVm.name}</h2><small>{editingVm.state} · {editingVm.id}</small></div><button className="modal-close secondary" disabled={busy} onClick={() => setEditingVm(null)}>×</button></div><div className="modal-body"><div className="modal-preview"><IconPreview value={vmIcon || editingVm.displayIcon || ""} alt={`${editingVm.name} 图标预览`} /></div><div><label>图标 URL 或图库地址<input autoFocus value={vmIcon} placeholder="https://…" onChange={(event) => { setVmIcon(event.target.value); setVmError(""); }} /></label><small className="field-help">外部 URL 会自动下载到图库，并通过 libvirt metadata 更新图标；不会重启虚拟机。</small><div className="icon-source-actions"><label className="upload">上传 PNG / SVG / WebP<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={uploadForVm} disabled={busy} /></label><button className="secondary" type="button" onClick={() => setShowVmGallery((value) => !value)}>从图库中选择</button></div>{vmError && <p className="modal-error" role="alert">{vmError}</p>}</div></div>{showVmGallery && <ModalIconGallery assets={gallery} groups={iconGroups} value={vmIcon} onSelect={setVmIcon} />}<div className="modal-actions"><button className="secondary" disabled={busy} onClick={() => setEditingVm(null)}>取消</button><button className="modal-apply" disabled={busy || !vmIcon.trim()} onClick={() => void applyVmIcon()}>{busy ? "处理中…" : `应用到 ${editingVm.name}`}</button></div></section></div>}
       {editing && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}><section className="icon-modal" role="dialog" aria-modal="true" aria-labelledby="icon-modal-title"><div className="modal-header"><div><p className="eyebrow">单容器图标</p><h2 id="icon-modal-title">{editing.name}</h2><small>{stateLabel(editing.state)} · {editing.image}</small></div><button className="modal-close secondary" aria-label="关闭更换图标弹窗" disabled={busy} onClick={closeEditor}>×</button></div><div className="modal-body"><div className="modal-preview"><IconPreview value={modalIcon || editing.displayIcon || ""} alt={`${editing.name} 图标预览`} /></div><div><label>图标 URL 或图库地址<input autoFocus value={modalIcon} placeholder="https://…" onChange={(event) => { setModalIcon(event.target.value); setModalError(""); }} /></label><small className="field-help">外部 URL 保存时会自动下载到图库；下载或校验失败时不会修改模板。</small><div className="icon-source-actions"><label className="upload">上传 PNG / SVG / WebP<input type="file" accept="image/png,image/svg+xml,image/webp" onChange={uploadForModal} disabled={busy} /></label><button className="secondary" type="button" onClick={() => setShowModalGallery((value) => !value)}>从图库中选择</button></div>{!editing.icon && editing.iconCandidates.length > 0 && <div className="discovered-icons"><strong>发现 {editing.iconCandidates.length} 个图标候选</strong>{editing.iconCandidates.map((candidate) => <button className="secondary" key={`${candidate.source}-${candidate.value}`} onClick={() => setModalIcon(candidate.value)}>{candidate.source === "container-label" ? "Compose / 容器标签" : candidate.source === "image-label" ? "本地镜像标签" : "同镜像 Unraid 模板"}：{candidate.labelKey}</button>)}</div>}<p className="modal-hint">{editing.displayIconSource !== "template" && editing.displayIcon && !editing.icon ? "左侧显示的是 Unraid 当前实际图标；请选择候选、图库或上传后再保存。" : ""}{templateNote(editing)}。保存本身不会重建；保存后点击同步，只重建该容器并持久更新 Compose Manager override。</p>{modalError && <p className="modal-error" role="alert">{modalError}</p>}</div></div>{showModalGallery && <ModalIconGallery assets={gallery} groups={iconGroups} value={modalIcon} onSelect={setModalIcon} />}<div className="modal-actions"><button className="secondary" disabled={busy} onClick={closeEditor}>取消</button><button className="modal-apply" disabled={busy || !modalIcon.trim()} onClick={() => void applyOne()}>{busy ? "处理中…" : `仅应用到 ${editing.name}`}</button></div></section></div>}
+      {actionNotification && <aside className={`action-toast ${actionNotification.type}`} role={actionNotification.type === "error" ? "alert" : "status"}><span className="action-toast-symbol" aria-hidden="true">{actionNotification.type === "success" ? "✓" : "!"}</span><div><strong>{actionNotification.type === "success" ? "操作完成" : "操作失败"}</strong><p>{actionNotification.message}</p></div><button aria-label="关闭通知" onClick={() => setActionNotification(null)}>×</button></aside>}
       {page === "gallery" && selectedGalleryIcons.size === 1 && <div className="rename-selection"><button className="secondary" disabled={busy} onClick={() => { const asset = gallery.find((item) => selectedGalleryIcons.has(item.fileName)); if (asset) void renameIcon(asset); }}>重命名所选图标</button></div>}
       {page === "wallpapers" && selectedGalleryWallpapers.size === 1 && <div className="rename-selection"><button className="secondary" disabled={busy} onClick={() => { const asset = wallpapers.find((item) => selectedGalleryWallpapers.has(item.fileName)); if (asset) void renameWallpaper(asset); }}>重命名所选壁纸</button></div>}
     </main>

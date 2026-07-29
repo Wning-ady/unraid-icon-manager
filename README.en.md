@@ -5,13 +5,13 @@
 <p align="center"><img src="docs/icon.png" alt="Unraid Icon Manager project icon" width="150"></p>
 
 <p align="center">
-  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.25 desktop container dashboard" width="960">
+  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.26 desktop container dashboard" width="960">
   <br><sub>Desktop container dashboard captured from a live Unraid installation</sub>
 </p>
 
 <details>
   <summary><strong>View the mobile layout</strong></summary>
-  <p align="center"><img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.25 mobile layout" width="320"></p>
+  <p align="center"><img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.26 mobile layout" width="320"></p>
 </details>
 
 > [!NOTE]
@@ -22,15 +22,14 @@ Bulk-manage icons for **currently deployed** Unraid Docker containers from a sma
 > [!WARNING]
 > Keep this service on a trusted LAN. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. The sync action uses the Docker API to recreate selected containers. A Docker socket remains highly sensitive even when mounted `:ro`; do not expose this service, its port, or an unauthenticated reverse proxy to the public internet. Production startup requires a random 24+ character `ADMIN_TOKEN`; management APIs require a browser login and same-origin CSRF validation.
 
-## What's new in v0.1.25
+## What's new in v0.1.26
 
-- Rebuilt the management UI as a full-screen macOS-inspired glass workspace, without a floating window frame or decorative traffic-light dots.
-- Narrowed the desktop navigation and compacted container and VM cards so wide screens can show seven to eight items per row.
-- Fixed low-contrast blue surfaces in light mode while retaining dark-mode and wallpaper support.
-- Reflowed the mobile layout into stacked title, brand, navigation, and content regions with a two-column card grid and no horizontal page overflow.
-- Preserved all container, VM, gallery, wallpaper, batch-operation, audit, and rollback behavior from v0.1.24.
+- Added a container context menu with icon repair plus confirmed start/restart actions and result notifications.
+- Fixed icons disappearing after image updates by recreating first and writing both Unraid caches afterwards.
+- Kept saved template icons visible while marking stale or missing live Docker labels for repair.
+- Compacted gallery controls and switched the Unraid XML template to the rolling `latest` image.
 
-See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.25 release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.25) for installation assets.
+See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.26 release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.26) for installation assets.
 
 ## Features
 
@@ -39,6 +38,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.25 release](https
 - Lets every current container receive an icon. Existing matching templates are updated; when none exists, it creates a clearly marked, auditable dedicated metadata template that matches the live container name and image without colliding with existing `my-*.xml` files.
 - Saving never recreates a container. Explicit sync atomically updates only the selected Compose Manager service in `docker-compose.override.yml`, then recreates only selected containers while preserving volumes and runtime configuration. It does not edit the main Compose file or touch unrelated services.
 - Searches, multi-selects, and opens a focused single-container icon editor by clicking any container card.
+- Right-clicks a container to replace or repair its icon, or to start/restart it after confirmation with an in-page result notification.
 - Downloads every used external icon URL before applying it, validates and normalizes the content to a stable PNG, and keeps it in the persistent icon gallery. A failed download leaves templates untouched.
 - Allows gallery selection, address/root copying, and deletion while protecting assets still referenced by templates or audit history.
 - Discovers opt-in icon candidates from explicit Docker Compose/container labels and local image metadata without reading Compose files or pulling images. A selected remote candidate follows the same safe import flow.
@@ -126,10 +126,10 @@ Compose deployment values are written directly in [`docker-compose.yml`](docker-
 
 ## Publishing
 
-Push a tag such as `v0.1.25` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.26` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.25`
+- `waning/unraid-icon-manager:v0.1.26`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.

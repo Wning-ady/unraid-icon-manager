@@ -62,6 +62,8 @@ export interface ManagedContainer {
   /** What Unraid currently renders, kept separate from the persisted template Icon. */
   displayIcon: string | null;
   displayIconSource: "unraid-cache" | "unraid-label" | "template" | null;
+  /** The saved template icon exists, but the live Docker label is missing or different. */
+  iconNeedsSync: boolean;
   editable: boolean;
   templateMatch: "name" | "file" | null;
   composeManaged: boolean;
