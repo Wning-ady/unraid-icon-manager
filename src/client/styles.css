@@ -808,6 +808,9 @@ button.card-open:focus-visible {
   }
 
   .sidebar nav {
+    flex: 1 1 0;
+    width: auto;
+    max-width: 100%;
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
