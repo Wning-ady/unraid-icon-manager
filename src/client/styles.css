@@ -770,3 +770,49 @@ button.card-open:focus-visible {
 @media (max-width: 360px) {
   .container-grid { grid-template-columns: 1fr; }
 }
+
+/* Mobile shell: stack the title bar, navigation and workspace vertically. */
+@media (max-width: 700px) {
+  .mac-titlebar {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+  }
+
+  .mac-body {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding-top: 0;
+    overflow: visible;
+  }
+
+  .sidebar {
+    display: flex;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    flex-direction: row;
+    align-items: center;
+    overflow: visible;
+  }
+
+  .sidebar nav {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .sidebar nav::-webkit-scrollbar { display: none; }
+
+  .workspace {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: calc(100dvh - 48px);
+    margin: 0;
+    overflow: visible;
+  }
+}
