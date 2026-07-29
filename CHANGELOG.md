@@ -2,8 +2,11 @@
 
 ## 0.1.25
 
-- Refresh the Web UI as a macOS-inspired glass workspace: floating application frame, title bar, glass navigation, cards, galleries and dialogs.
-- Preserve every container, VM, gallery, wallpaper, audit and API behavior from 0.1.24.
+- Rebuild the Web UI as a full-screen macOS-inspired glass workspace without the floating window frame or decorative traffic-light dots.
+- Narrow the desktop navigation and compact container and VM cards so wide screens can show seven to eight items per row.
+- Fix low-contrast blue surfaces in light mode while retaining dark-mode and wallpaper support.
+- Reflow the mobile title, brand, navigation, and content regions into a two-column layout with no horizontal page overflow.
+- Preserve every container, VM, gallery, wallpaper, batch-operation, audit, rollback, and API behavior from 0.1.24.
 
 ## 0.1.24
 
