@@ -691,3 +691,82 @@ button.card-open:focus-visible {
 @media (max-width: 900px) {
   .sidebar { flex-basis: 160px; width: 160px; padding: .85rem .35rem; }
 }
+
+/* Compact container cards: keep the management view scannable on wide and small screens. */
+.container-grid {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: .65rem;
+}
+
+.card {
+  min-height: 96px;
+  padding: .58rem;
+  gap: .48rem;
+  border-radius: 14px;
+}
+
+.card-open {
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: .48rem;
+}
+
+.icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  font-size: 1.05rem;
+}
+
+.card strong { font-size: .78rem; }
+.image-name { margin: .18rem 0 .24rem; font-size: .62rem; }
+.template-note {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: .58rem;
+  line-height: 1.25;
+}
+.state { padding: .16rem .28rem; font-size: .55rem; }
+
+@media (max-width: 1200px) {
+  .container-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .sidebar {
+    position: static;
+    flex: none;
+    flex-direction: row;
+    width: 100%;
+    height: auto;
+    padding: .6rem .8rem;
+    overflow-x: auto;
+  }
+  .sidebar nav { flex: 0 0 auto; }
+  .nav-item { flex: 0 0 auto; padding: .48rem .5rem; font-size: .68rem; }
+  .container-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+  .card { min-height: 82px; padding: .46rem; gap: .38rem; }
+  .card-open { grid-template-columns: 32px minmax(0, 1fr); gap: .4rem; }
+  .icon { width: 32px; height: 32px; border-radius: 9px; font-size: .9rem; }
+  .card strong { font-size: .72rem; }
+  .image-name { margin: .14rem 0 .18rem; font-size: .55rem; }
+  .template-note { font-size: .52rem; line-height: 1.2; }
+  .state { padding: .12rem .22rem; font-size: .5rem; }
+  .card-select input { transform: scale(.84); }
+}
+
+@media (max-width: 440px) {
+  .workspace { padding-right: .62rem; padding-left: .62rem; }
+  .container-grid { gap: .42rem; }
+  .card { min-height: 76px; padding: .4rem; }
+  .card-open { grid-template-columns: 29px minmax(0, 1fr); gap: .32rem; }
+  .icon { width: 29px; height: 29px; border-radius: 8px; font-size: .8rem; }
+  .card strong { font-size: .67rem; }
+  .image-name { font-size: .51rem; }
+  .template-note { font-size: .48rem; }
+}
+
+@media (max-width: 360px) {
+  .container-grid { grid-template-columns: 1fr; }
+}
