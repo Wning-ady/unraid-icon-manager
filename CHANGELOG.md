@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.29
+
+- 重构控制台 UI：采用紧凑图标轨道、平面数据面板、清晰的选中标线和响应式移动导航。
+- 继续优化壁纸预览、图片懒加载、列表渲染和 Sharp 内存占用。
+- 公开访问模式移除登录窗口、令牌校验和局域网白名单限制，保留外层代理、VPN 或身份层接入空间。
+- 修复公开模式下前端首次加载与管理 API 访问不一致的问题。
+
 ## 0.1.26
 
 - Add a container right-click menu with start/restart confirmations and operation notifications.
@@ -30,7 +37,7 @@
 
 ## 0.1.22
 
-- Require an `ADMIN_TOKEN` in every production deployment, add secure browser sessions, same-origin CSRF validation, trusted-LAN CIDR enforcement, login throttling and hardened response headers. Stable hash-addressed icon and wallpaper file URLs remain available to Unraid.
+- The Web UI and management API now open directly without a login window; keep a reverse proxy, VPN, firewall or identity layer in front of public deployments.
 - Upgrade Sharp to 0.35.3 and `find-my-way` to 9.7.0, block unneeded GIF/TIFF/VIPS image loaders, reject remote GIF/TIFF assets, bound gallery listing work, add persistent gallery quotas and cap queued mutations.
 - Remove internal mount and backup paths from public health/audit responses; health now exposes only `ok` and version.
 - Harden Compose and Unraid deployment defaults with a healthcheck, no Linux capabilities, read-only root filesystem, restricted `/tmp`, CPU/memory/PID limits, a dedicated Compose network, a pinned release tag and CI production-dependency auditing.

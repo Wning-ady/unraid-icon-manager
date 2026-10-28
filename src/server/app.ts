@@ -17,6 +17,7 @@ import { findUnraidIconCache, invalidateUnraidIconCache, mutateUnraidIconCache, 
 import { synchronizeContainerIcon } from "./container-sync-service.js";
 import { listVirtualMachines, updateVirtualMachineIcon } from "./vm-service.js";
 import { AccessControl } from "./security.js";
+import { openSafeImage } from "./image-security.js";
 
 function stringArray(value: unknown, label: string): string[] {
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error(`${label} must be a string array`);
@@ -57,7 +58,7 @@ function ownIconFile(config: AppConfig, value: string): string | null {
 export function createApp(config: AppConfig, dependencies: { listManagedContainers?: typeof listManagedContainers; downloadRemoteImage?: typeof downloadRemoteImage; synchronizeContainerIcon?: typeof synchronizeContainerIcon; performContainerAction?: typeof performContainerAction } = {}) {
   const bodyBytes = Math.max(config.maxUploadBytes, config.maxWallpaperBytes ?? config.maxUploadBytes);
   const app = Fastify({ logger: true, bodyLimit: Math.ceil(bodyBytes * 4 / 3) + 16_384 });
-  const access = new AccessControl(config);
+  const access = new AccessControl();
   void app.register(fastifyRateLimit, { global: true, max: 300, timeWindow: "1 minute", ban: 2 });
   const database = new AppDatabase(config);
   const clientRoot = join(process.cwd(), "dist/client");
@@ -90,21 +91,11 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     reply.header("referrer-policy", "no-referrer");
     reply.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
     reply.header("content-security-policy", "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'");
-    if (!access.isTrusted(request)) return reply.code(403).send({ message: "此服务仅允许受信任的局域网访问" });
-    const pathname = request.url.split("?", 1)[0];
-    const publicApi = pathname === "/api/health" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/icons/file/") || pathname.startsWith("/api/wallpapers/file/");
-    if (pathname.startsWith("/api/") && !publicApi && !access.authenticated(request)) return reply.code(401).send({ message: "请先登录管理界面" });
-    if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method) && pathname !== "/api/auth/login" && !access.csrfValid(request)) {
-      return reply.code(403).send({ message: "安全校验失败，请刷新页面后重试" });
-    }
   });
   app.get("/api/health", async () => ({ ok: true, version: appVersion }));
   app.get("/api/auth/session", async (request) => access.session(request));
   app.post("/api/auth/login", { config: { rateLimit: { max: 5, timeWindow: "1 minute" } } }, async (request, reply) => {
-    const token = (request.body as { token?: unknown })?.token;
-    if (typeof token !== "string") return reply.code(400).send({ message: "管理员令牌不能为空" });
-    const session = access.login(token);
-    if (!session) return reply.code(401).send({ message: "管理员令牌无效" });
+    const session = access.login((request.body as { token?: unknown })?.token as string);
     const secure = request.protocol === "https" ? "; Secure" : "";
     const names = access.cookieNames();
     reply.header("set-cookie", [`${names.sessionCookie}=${session.session}; Path=/; HttpOnly; SameSite=Strict; Max-Age=43200${secure}`, `${names.csrfCookie}=${session.csrf}; Path=/; SameSite=Strict; Max-Age=43200${secure}`]);
@@ -400,12 +391,26 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
     const fileName = (request.params as { fileName: string }).fileName;
     if (!WALLPAPER_FILE_NAME_PATTERN.test(fileName)) return reply.code(404).send({ message: "壁纸不存在" });
     const extension = fileName.split(".").pop();
-    if ((request.query as { download?: string }).download === "1") {
+    const query = request.query as { download?: string; variant?: string };
+    if (query.download === "1") {
       reply.header("content-disposition", `attachment; filename="wallpaper-${fileName.slice(0, 12)}.${extension}"`);
     }
     try {
-      const handle = await open(wallpaperPath(config, fileName), constants.O_RDONLY | constants.O_NOFOLLOW);
+      const filePath = wallpaperPath(config, fileName);
+      const handle = await open(filePath, constants.O_RDONLY | constants.O_NOFOLLOW);
       if (!(await handle.stat()).isFile()) { await handle.close(); return reply.code(404).send({ message: "壁纸不存在" }); }
+      // The original stays available for downloads. UI cards and the full-page
+      // background use a bounded WebP preview so an 8K wallpaper is never
+      // decoded into a multi-hundred-megabyte browser texture.
+      if (query.variant === "preview") {
+        await handle.close();
+        const preview = await openSafeImage(filePath, 80_000_000)
+          .resize({ width: 1920, height: 1200, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        return reply.type("image/webp").header("cache-control", "public, max-age=86400, immutable").send(preview);
+      }
+      reply.header("cache-control", "public, max-age=31536000, immutable");
       return reply.type(extension === "jpg" ? "image/jpeg" : `image/${extension}`).send(handle.createReadStream());
     } catch { return reply.code(404).send({ message: "壁纸不存在" }); }
   });

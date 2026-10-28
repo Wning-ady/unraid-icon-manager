@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Wning-ady/unraid-icon-manager/issues</Support>
   <Project>https://github.com/Wning-ady/unraid-icon-manager</Project>
-  <Overview>Manage Docker and VM icons from one web UI, with a searchable grouped icon gallery. Right-click a container to replace its icon, repair a missing live label, or start/restart it after confirmation. Docker Sync updates Compose Manager metadata and recreates only selected containers; VM icons use Unraid libvirt metadata without restarting VMs. Trusted LAN only.</Overview>
+  <Overview>Manage Docker and VM icons from one public web UI, with a searchable grouped icon gallery. Right-click a container to replace its icon, repair a missing live label, or start/restart it after confirmation. Docker Sync updates Compose Manager metadata and recreates only selected containers; VM icons use Unraid libvirt metadata without restarting VMs. Put an external access boundary in front of the published port.</Overview>
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
   <Icon>https://raw.githubusercontent.com/Wning-ady/unraid-icon-manager/main/docs/icon.png</Icon>
@@ -21,8 +21,6 @@
   <DonateLink/>
   <Requires/>
   <Config Name="WebUI port" Target="8787" Default="8787" Mode="tcp" Description="Web UI port" Type="Port" Display="always" Required="true" Mask="false">8787</Config>
-  <Config Name="Admin token" Target="ADMIN_TOKEN" Default="" Mode="" Description="Required: set a unique random value of at least 24 characters. It protects Docker, template and VM management APIs; never expose this service to the Internet." Type="Variable" Display="always" Required="true" Mask="true"/>
-  <Config Name="Trusted networks" Target="TRUSTED_NETWORKS" Default="127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" Mode="" Description="Comma-separated CIDRs allowed to connect. Restrict to your own LAN subnet when possible, e.g. 192.168.2.0/24." Type="Variable" Display="advanced" Required="true" Mask="false">127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16</Config>
   <Config Name="Application data" Target="/config" Default="/mnt/user/appdata/unraid-icon-manager" Mode="rw" Description="Database, icon and wallpaper galleries, audits and backups" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/unraid-icon-manager</Config>
   <Config Name="Docker Manager templates" Target="/unraid/templates-user" Default="/boot/config/plugins/dockerMan/templates-user" Mode="rw" Description="Required to update icon template metadata" Type="Path" Display="always" Required="true" Mask="false">/boot/config/plugins/dockerMan/templates-user</Config>
   <Config Name="Persistent icon cache" Target="/unraid/icon-cache" Default="/var/lib/docker/unraid/images" Mode="rw" Description="Required to invalidate only changed Docker Manager icon cache files" Type="Path" Display="always" Required="true" Mask="false">/var/lib/docker/unraid/images</Config>

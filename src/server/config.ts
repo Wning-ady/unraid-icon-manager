@@ -21,8 +21,10 @@ function positiveInteger(value: string | undefined, fallback: number, label: str
 }
 
 export function loadConfig(env = process.env): AppConfig {
-  const adminToken = env.ADMIN_TOKEN?.trim();
-  if (!adminToken || adminToken.length < 24 || /^change[_-]?me/i.test(adminToken)) throw new Error("ADMIN_TOKEN must be set to a random value of at least 24 characters");
+  // The manager is intentionally public in this deployment profile. Keep the
+  // legacy value readable for compatibility, but do not require a secret just
+  // to start the service.
+  const adminToken = env.ADMIN_TOKEN?.trim() || undefined;
   const configDir = requiredDirectory(env.CONFIG_DIR ?? "/config", "CONFIG_DIR");
   const templatesDir = requiredDirectory(env.TEMPLATES_DIR ?? "/unraid/templates-user", "TEMPLATES_DIR");
   const iconHostRoot = requiredDirectory(

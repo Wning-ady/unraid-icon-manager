@@ -5,13 +5,13 @@
 <p align="center"><img src="docs/icon.png" alt="Unraid Icon Manager project icon" width="150"></p>
 
 <p align="center">
-  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.26 desktop container dashboard" width="960">
+  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.29 desktop container dashboard" width="960">
   <br><sub>Desktop container dashboard captured from a live Unraid installation</sub>
 </p>
 
 <details>
   <summary><strong>View the mobile layout</strong></summary>
-  <p align="center"><img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.26 mobile layout" width="320"></p>
+  <p align="center"><img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.29 mobile layout" width="320"></p>
 </details>
 
 > [!NOTE]
@@ -20,16 +20,17 @@
 Bulk-manage icons for **currently deployed** Unraid Docker containers from a small self-hosted web UI. Saving changes templates, galleries, and caches only. The explicit **Sync to Unraid** action persists the immutable `net.unraid.docker.icon` label and recreates only the selected containers. The Chinese [README](README.md) is the primary and most detailed documentation.
 
 > [!WARNING]
-> Keep this service on a trusted LAN. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. The sync action uses the Docker API to recreate selected containers. A Docker socket remains highly sensitive even when mounted `:ro`; do not expose this service, its port, or an unauthenticated reverse proxy to the public internet. Production startup requires a random 24+ character `ADMIN_TOKEN`; management APIs require a browser login and same-origin CSRF validation.
+> This deployment profile exposes the Web UI and management APIs without a login window. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. A Docker socket remains highly sensitive even when mounted `:ro`; put a reverse proxy, VPN, firewall, or identity layer in front of port 8787 before exposing it publicly.
 
-## What's new in v0.1.26
+## What's new in v0.1.29
 
-- Added a container context menu with icon repair plus confirmed start/restart actions and result notifications.
-- Fixed icons disappearing after image updates by recreating first and writing both Unraid caches afterwards.
-- Kept saved template icons visible while marking stale or missing live Docker labels for repair.
-- Compacted gallery controls and switched the Unraid XML template to the rolling `latest` image.
+- Reworked the console UI with a compact icon rail, flat data panels, consistent 1px selection marks, and clearer bulk actions.
+- Improved desktop and mobile navigation while removing decorative glass layers and emoji controls.
+- Switched wallpaper previews to bounded WebP and enabled lazy, asynchronous gallery image decoding to reduce memory use.
+- Public mode now opens the management console directly without a login window, token gate, or network allowlist.
+- Preserved container context actions, icon repair, confirmed start/restart flows, and audit rollback.
 
-See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.26 release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.26) for installation assets.
+See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.29 release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.29) for installation assets.
 
 ## Features
 
@@ -81,8 +82,8 @@ Map TCP port `8787` to a free host port. Then set these required advanced variab
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | The host path corresponding to `/config/icons`; retain it when moving appdata. |
 | `WALLPAPER_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/wallpapers` | The host path corresponding to `/config/wallpapers`. |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager's `PROJECTS_FOLDER`; it must match the host side of the `/unraid/compose-projects` mount. |
-| `ADMIN_TOKEN` | random 24+ character value | Required administrator login token. Generate with `openssl rand -base64 36`; it is never stored in the database or logs. |
-| `TRUSTED_NETWORKS` | `192.168.2.0/24` | Comma-separated trusted CIDRs. Restrict it to your management LAN; connections outside it are rejected. |
+| `ADMIN_TOKEN` | optional | Kept for compatibility with older deployments; public mode does not require login. |
+| `TRUSTED_NETWORKS` | optional | Kept for compatibility with older deployments; public mode does not restrict client networks. |
 
 Open `http://YOUR_UNRAID_IP:8787` after starting. Alternatively, copy [`unraid/template.xml`](unraid/template.xml) to `/boot/config/plugins/dockerMan/templates-user/`, select **unraid-icon-manager** from **Add Container**, and fill the two URL variables before applying it.
 
@@ -126,10 +127,10 @@ Compose deployment values are written directly in [`docker-compose.yml`](docker-
 
 ## Publishing
 
-Push a tag such as `v0.1.26` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.29` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.26`
+- `waning/unraid-icon-manager:v0.1.29`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.

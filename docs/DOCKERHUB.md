@@ -34,7 +34,7 @@ Unraid Icon Manager 是一个面向 Unraid 的自托管 Web 图标管理器。
 
 本服务需要访问 Docker socket；启用 VM 功能时还会访问 libvirt socket。即使 Docker socket 使用 `:ro` 挂载，也不会限制 Docker API 的高权限操作。libvirt socket 等同完整虚拟机管理权限。
 
-从 `v0.1.22` 开始必须设置至少 24 位的 `ADMIN_TOKEN`，并可通过 `TRUSTED_NETWORKS` 限制允许访问的网段。登录保护不能代替网络隔离。
+当前镜像默认公开 Web UI 和管理 API，不显示登录窗口，也不限制客户端网段。请在公开部署前于外层配置反向代理、VPN、防火墙或身份认证。
 
 ## 拉取镜像
 
@@ -42,7 +42,7 @@ Unraid Icon Manager 是一个面向 Unraid 的自托管 Web 图标管理器。
 
 ```bash
 docker pull waning/unraid-icon-manager:latest
-docker pull waning/unraid-icon-manager:v0.1.26
+docker pull waning/unraid-icon-manager:v0.1.29
 ```
 
 镜像支持 `linux/amd64` 与 `linux/arm64`。
@@ -51,14 +51,14 @@ docker pull waning/unraid-icon-manager:v0.1.26
 
 无需 `.env`。使用前必须完成以下修改：
 
-1. 把 `ADMIN_TOKEN` 改成至少 24 位的随机字符串；
+1. 按需在外层配置公开服务的访问控制；
 2. 把三处 `192.168.1.10` 改成你的 Unraid IP；
 3. 如果 Compose Manager 的项目目录不是 `/mnt/user/docker`，同时修改挂载与 `COMPOSE_HOST_ROOT`。
 
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.26
+    image: waning/unraid-icon-manager:v0.1.29
     container_name: unraid-icon-manager
 
     ports:
@@ -66,10 +66,7 @@ services:
 
     environment:
       - TZ=Asia/Shanghai
-      # 必填：替换为至少 24 位的随机字符串；不要保留示例值。
-      - ADMIN_TOKEN=CHANGE_ME_USE_A_RANDOM_32_CHARACTER_TOKEN
-      # 建议缩小为你的实际 LAN，例如 192.168.2.0/24。
-      - TRUSTED_NETWORKS=127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      # 公开模式无需填写登录令牌或局域网白名单。
       - ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
       - WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
       - ICON_CACHE_DIR=/unraid/icon-cache
@@ -148,8 +145,8 @@ docker compose up -d
 
 | 参数 | 说明 |
 | --- | --- |
-| `ADMIN_TOKEN` | 必填，至少 24 位；用于 Web UI 登录，不写入数据库或日志 |
-| `TRUSTED_NETWORKS` | 允许访问服务的 CIDR 列表；建议缩小为实际管理网段 |
+| `ADMIN_TOKEN` | 可选兼容变量；公开模式不要求登录 |
+| `TRUSTED_NETWORKS` | 可选兼容变量；公开模式不限制客户端网段 |
 | `PUBLIC_BASE_URL` | Unraid 主机可访问的工具地址；不能填写 `localhost` |
 | `UNRAID_DOCKER_URL` | 点击刷新后打开的 Unraid Docker 页面 |
 | `UNRAID_VM_URL` | 修改 VM 图标后打开的 Unraid VM 页面 |

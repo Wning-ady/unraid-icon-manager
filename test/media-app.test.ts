@@ -70,6 +70,11 @@ test("uploads, imports, groups, downloads and deletes wallpapers", async () => {
     assert.equal(moved.statusCode, 200);
     const downloaded = await app.inject({ method: "GET", url: `/api/wallpapers/file/${fileName}?download=1` });
     assert.equal(downloaded.statusCode, 200); assert.match(downloaded.headers["content-disposition"] ?? "", /attachment/);
+    const preview = await app.inject({ method: "GET", url: `/api/wallpapers/file/${fileName}?variant=preview` });
+    assert.equal(preview.statusCode, 200);
+    assert.equal(preview.headers["content-type"], "image/webp");
+    assert.equal(preview.headers["cache-control"], "public, max-age=86400, immutable");
+    assert.equal((await sharp(preview.rawPayload).metadata()).format, "webp");
     const imported = await app.inject({ method: "POST", url: "/api/wallpapers/import", payload: { url: "https://images.example/wallpaper.png", groupId } });
     assert.equal(imported.statusCode, 201);
     const removed = await app.inject({ method: "DELETE", url: `/api/wallpapers/${fileName}` });

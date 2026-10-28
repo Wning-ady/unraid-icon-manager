@@ -14,14 +14,14 @@
     <a href="#升级与回滚">升级与回滚</a> ·
     <a href="SECURITY.md">安全说明</a>
   </p>
-  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.26 桌面端容器图标总览" width="960">
+  <img src="docs/dashboard-desktop.png" alt="Unraid Icon Manager v0.1.29 桌面端容器图标总览" width="960">
   <p><sub>真实 Unraid 环境中的桌面端容器图标总览</sub></p>
 </div>
 
 <details>
   <summary><strong>查看手机端界面</strong></summary>
   <p align="center">
-    <img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.26 手机端界面" width="320">
+    <img src="docs/dashboard-mobile.png" alt="Unraid Icon Manager v0.1.29 手机端界面" width="320">
   </p>
 </details>
 
@@ -33,16 +33,17 @@
 通过轻量级、自托管 Web 管理界面批量管理**当前已部署** Unraid Docker 容器的图标。保存图标时只更新模板、图库和缓存；点击**同步到 Unraid**后，工具会为所选容器持久化 `net.unraid.docker.icon`，并只重建这些容器，使 Docker Manager 与 Compose Manager 都使用新图标。
 
 > [!WARNING]
-> 本服务只能放在可信局域网。它需要 Docker socket；启用 VM 图标时还需要读写 libvirt socket，该 socket 等同完整虚拟机管理权限。`v0.1.22` 起生产启动必须设置 `ADMIN_TOKEN`，管理 API 需要登录与同源安全校验。不要把服务端口或反向代理暴露到公网。
+> 本部署配置会公开 Web 管理界面和管理 API，不显示登录窗口。它需要 Docker socket；启用 VM 图标时还需要读写 libvirt socket，该 socket 等同完整虚拟机管理权限。公开到互联网前，请先在外层配置反向代理、VPN、防火墙或身份认证。
 
-## v0.1.26 更新
+## v0.1.29 更新
 
-- 容器卡片支持右键菜单，可更换图标、修复图标同步，并通过确认弹窗启动或重启容器。
-- 修复镜像更新或容器重建后 Unraid 图标掉失：先重建目标容器，再写入持久与 RAM 图标缓存。
-- 管理器会保留显示已保存的模板图标，同时明确标记运行标签是否需要重新同步。
-- 缩小图库复选框、元数据与操作按钮；XML 安装模板改用 `latest`。
+- 重构控制台 UI：紧凑图标轨道、平面数据面板、统一 1px 选中标线和更清晰的批量操作层级。
+- 完善桌面与移动端响应式导航，去除装饰性玻璃效果和 Emoji 图标。
+- 壁纸预览改用受限尺寸 WebP，图库图片启用懒加载与异步解码，降低内存占用。
+- 公开模式直接进入管理控制台，移除登录窗口、令牌校验和局域网白名单限制。
+- 保留容器右键菜单、图标修复、启动/重启确认与审计回滚功能。
 
-完整记录见 [CHANGELOG.md](CHANGELOG.md)，安装包见 [v0.1.26 Release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.26)。
+完整记录见 [CHANGELOG.md](CHANGELOG.md)，安装包见 [v0.1.29 Release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.29)。
 
 ## 功能
 
@@ -97,8 +98,8 @@ docker pull waning/unraid-icon-manager:latest
 | `UNRAID_VM_URL` | `http://192.168.1.10:5000/VMs` | 修改 VM 图标后打开的 Unraid VM 页面。 |
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | 对应 `/config/icons` 的主机路径；移动 appdata 时一同修改。 |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager 的 `PROJECTS_FOLDER`；用于写回所选服务的 override。 |
-| `ADMIN_TOKEN` | 随机 24 位以上字符串 | **必填**。首次打开 Web UI 时输入；不写入数据库和日志。可用 `openssl rand -base64 36` 生成。 |
-| `TRUSTED_NETWORKS` | `192.168.0.0/16` 等 RFC1918 网段 | 建议缩小为你的 LAN，例如 `192.168.2.0/24`；不在范围内的连接会被拒绝。 |
+| `ADMIN_TOKEN` | 可选 | 兼容旧部署的变量；当前公开模式不要求登录。 |
+| `TRUSTED_NETWORKS` | 可选 | 兼容旧部署的变量；当前公开模式不做网段限制。 |
 
 启动后访问 `http://你的_UNRAID_IP:8787`。也可将 [`unraid/template.xml`](unraid/template.xml) 复制到 `/boot/config/plugins/dockerMan/templates-user/`，在 **Add Container** 中选择 **unraid-icon-manager**，并在应用前填写两个 URL 变量。
 
@@ -109,7 +110,7 @@ docker pull waning/unraid-icon-manager:latest
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.26
+    image: waning/unraid-icon-manager:v0.1.29
     container_name: unraid-icon-manager
 
     ports:
@@ -117,10 +118,7 @@ services:
 
     environment:
       - TZ=Asia/Shanghai
-      # 必填：改成你自己的随机值（至少 24 位），不要保留 CHANGE_ME。
-      - ADMIN_TOKEN=CHANGE_ME_USE_A_RANDOM_32_CHARACTER_TOKEN
-      # 可收紧为你的实际 LAN，例如 192.168.2.0/24。
-      - TRUSTED_NETWORKS=127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      # 公开模式无需填写登录令牌或局域网白名单。
       - ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
       - WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
       - ICON_CACHE_DIR=/unraid/icon-cache
@@ -191,7 +189,7 @@ docker compose up -d
 curl http://你的_UNRAID_IP:8787/api/health
 ```
 
-正常结果为 `{ "ok": true, "version": "0.1.26" }`。健康检查不再泄露宿主机挂载状态；请登录 Web UI 确认 Docker、模板与 VM 连接状态。
+正常结果为 `{ "ok": true, "version": "0.1.29" }`。健康检查不再泄露宿主机挂载状态；打开 Web UI 即可确认 Docker、模板与 VM 连接状态。
 
 #### Compose 服务字段逐项说明
 
@@ -211,8 +209,8 @@ curl http://你的_UNRAID_IP:8787/api/health
 | 参数 | 默认/示例 | 是否必填 | 作用 |
 | --- | --- | --- | --- |
 | `TZ` | `Asia/Shanghai` | 否 | 容器时区，影响界面与日志中的本地时间显示。 |
-| `ADMIN_TOKEN` | 自行生成的随机长字符串 | **是** | 管理员登录令牌，至少 24 个字符；可用 `openssl rand -base64 36` 生成。绝不能使用示例 `CHANGE_ME`，也不要提交到公开仓库。 |
-| `TRUSTED_NETWORKS` | RFC1918 + loopback | **是** | 允许访问本服务的逗号分隔 CIDR。建议缩小至实际管理网段；Fastify 不信任可伪造的 `X-Forwarded-For`。 |
+| `ADMIN_TOKEN` | 可选 | 否 | 兼容旧部署；公开模式不显示登录窗口。 |
+| `TRUSTED_NETWORKS` | 可选 | 否 | 兼容旧部署；公开模式不做网段限制。 |
 | `ICON_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/icons` | 是 | `/config/icons` 在 Unraid 主机上的对应路径。修改 `/config` 的主机挂载时，必须同步修改。 |
 | `WALLPAPER_HOST_ROOT` | `/mnt/user/appdata/unraid-icon-manager/wallpapers` | 是 | `/config/wallpapers` 在 Unraid 主机上的对应路径，用于复制正确的宿主机路径。 |
 | `COMPOSE_HOST_ROOT` | `/mnt/user/docker` | Compose Manager 用户是 | Compose Manager 插件设置中的 `PROJECTS_FOLDER`。不是该目录时必须修改，否则 Compose 图标不能持久化。 |
@@ -267,7 +265,7 @@ docker compose up -d --no-deps unraid-icon-manager
 ```
 
 - 不要为了升级本工具执行会影响其他服务的 `docker compose down`。Unraid 图形界面安装时，也只更新 `unraid-icon-manager` 的镜像标签。
-- 升级后检查 `http://你的地址/api/health` 返回的 `ok` 和版本，并登录 Web UI 确认 Docker/模板/VM 连接状态。首次升级到 `0.1.22` 需要新增 `ADMIN_TOKEN`；未填写时容器会安全地拒绝启动。
+- 升级后检查 `http://你的地址/api/health` 返回的 `ok` 和版本，并打开 Web UI 确认 Docker/模板/VM 连接状态。
 - 从**最近变更**回滚单项图标并再次点击同步。如需回退本工具版本，选择旧镜像标签，同时保留 `/config` 和所需挂载。
 
 ## 本地开发与测试

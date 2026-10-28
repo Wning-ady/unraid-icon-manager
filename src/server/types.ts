@@ -16,8 +16,9 @@ export interface AppConfig {
   maxIconGalleryBytes?: number;
   maxWallpaperGalleryBytes?: number;
   maxMutationQueue?: number;
-  /** Required in production; optional only for direct unit-test app construction. */
+  /** Legacy compatibility value; public mode does not require a login token. */
   adminToken?: string;
+  /** Legacy compatibility value; public mode does not enforce network allowlists. */
   trustedNetworks?: string[];
   /** Host Docker Manager's persistent and RAM icon caches, mounted read/write. */
   iconCacheDir?: string;

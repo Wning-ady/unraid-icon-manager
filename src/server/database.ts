@@ -84,7 +84,7 @@ export class AppDatabase {
       const result = this.database.prepare("INSERT INTO icon_groups (name, created_at) VALUES (?, ?)").run(clean, createdAt);
       return { id: Number(result.lastInsertRowid), name: clean, createdAt };
     } catch (error: any) {
-      if (error?.code === "SQLITE_CONSTRAINT_UNIQUE") throw new Error("已经存在同名图标分组");
+      if (error?.code === "SQLITE_CONSTRAINT_UNIQUE") throw new Error("已经存在同名图标分组", { cause: error });
       throw error;
     }
   }
@@ -131,7 +131,7 @@ export class AppDatabase {
       const result = this.database.prepare("INSERT INTO wallpaper_groups (name, created_at) VALUES (?, ?)").run(clean, createdAt);
       return { id: Number(result.lastInsertRowid), name: clean, createdAt };
     } catch (error: any) {
-      if (error?.code === "SQLITE_CONSTRAINT_UNIQUE") throw new Error("已经存在同名壁纸分组");
+      if (error?.code === "SQLITE_CONSTRAINT_UNIQUE") throw new Error("已经存在同名壁纸分组", { cause: error });
       throw error;
     }
   }

@@ -188,7 +188,10 @@ export async function recreateContainerWithIcon(docker: DockerLike, containerId:
       }
     } catch (recoveryError) { recoveryErrors.push(recoveryError); }
     const recovery = recoveryErrors.map(errorText).join("; ");
-    throw new Error(recovery ? `重建容器失败：${errorText(error)}；自动恢复也失败：${recovery}` : `重建容器失败，已自动恢复原容器：${errorText(error)}`);
+    throw new Error(
+      recovery ? `重建容器失败：${errorText(error)}；自动恢复也失败：${recovery}` : `重建容器失败，已自动恢复原容器：${errorText(error)}`,
+      { cause: error }
+    );
   }
 }
 
@@ -207,7 +210,7 @@ export async function synchronizeContainerIcon(config: AppConfig, container: Man
   } catch (error) {
     if (composeMutation) {
       try { await restoreComposeOverride(composeMutation); }
-      catch (restoreError) { throw new Error(`${errorText(error)}；Compose override 自动恢复失败：${errorText(restoreError)}`); }
+      catch (restoreError) { throw new Error(`${errorText(error)}；Compose override 自动恢复失败：${errorText(restoreError)}`, { cause: restoreError }); }
     }
     throw error;
   }

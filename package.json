@@ -1,6 +1,6 @@
 {
   "name": "unraid-icon-manager",
-  "version": "0.1.26",
+  "version": "0.1.29",
   "private": true,
   "type": "module",
   "description": "A self-hosted bulk icon manager for Unraid Docker Manager containers.",
@@ -33,7 +33,7 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
+    "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/dockerode": "^3.3.43",
     "@types/node": "^24.6.1",
@@ -41,9 +41,9 @@
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^9.2.1",
-    "eslint": "^9.36.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^16.4.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",

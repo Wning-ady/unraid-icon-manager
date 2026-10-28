@@ -1,6 +1,6 @@
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.26
+    image: waning/unraid-icon-manager:v0.1.29
     container_name: unraid-icon-manager
 
     ports:
@@ -8,10 +8,7 @@ services:
 
     environment:
       - TZ=Asia/Shanghai
-      # 必填：替换为至少 24 位的随机字符串；它不会被写入数据库或日志。
-      - ADMIN_TOKEN=CHANGE_ME_USE_A_RANDOM_32_CHARACTER_TOKEN
-      # 默认仅放行 RFC1918 局域网和本机；若 LAN 网段更严格，可缩小为例如 192.168.2.0/24。
-      - TRUSTED_NETWORKS=127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      # Web 管理界面默认公开访问，不需要登录令牌或局域网白名单。
       - ICON_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/icons
       - WALLPAPER_HOST_ROOT=/mnt/user/appdata/unraid-icon-manager/wallpapers
       - ICON_CACHE_DIR=/unraid/icon-cache
