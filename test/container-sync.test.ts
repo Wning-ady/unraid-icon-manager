@@ -63,6 +63,22 @@ test("recreates only the selected container with its new immutable icon label", 
   assert.equal(createdOptions.HostConfig.RestartPolicy.Name, "unless-stopped");
 });
 
+test("does not duplicate a named volume when a bind mount omits its mode", async () => {
+  const source = inspect();
+  source.HostConfig.Binds = ["/host:/data"];
+  const original = { inspect: async () => source, stop: async () => {}, remove: async () => {}, start: async () => {} };
+  let createdOptions: any;
+  const docker = {
+    getContainer: () => original,
+    createContainer: async (options: any) => {
+      createdOptions = options;
+      return { id: "new-id", start: async () => {}, remove: async () => {}, inspect: async () => ({ Id: "new-id", Config: { Labels: options.Labels }, State: { Running: true } }) };
+    }
+  };
+  await recreateContainerWithIcon(docker as any, "old-id", "https://example.com/new.png");
+  assert.equal(createdOptions.HostConfig.Mounts, undefined);
+});
+
 test("recreates the original container automatically when replacement creation fails", async () => {
   const events: string[] = [];
   const original = {

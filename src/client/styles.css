@@ -176,8 +176,7 @@ small, .section-title span { color: #7f8ca1; }
 .wallpaper-preview > a { display: block; width: 100%; height: 100%; }
 .wallpaper-preview img { width: 100%; height: 100%; object-fit: cover; transition: filter .2s ease, transform .25s ease; }
 .wallpaper-item:hover .wallpaper-preview img, .wallpaper-item:focus-within .wallpaper-preview img { filter: brightness(.62); transform: scale(1.035); }
-.set-background { position: absolute; top: 50%; left: 50%; min-width: 7.2rem; opacity: 0; color: #06202a; background: #6adbf6; box-shadow: 0 8px 24px #0007; transform: translate(-50%, calc(-50% + 8px)); pointer-events: none; }
-.wallpaper-item:hover .set-background, .wallpaper-item:focus-within .set-background, .wallpaper-item.active-background .set-background { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+.set-background { position: absolute; top: 50%; left: 50%; min-width: 7.2rem; opacity: 1; color: #06202a; background: #6adbf6; box-shadow: 0 8px 24px #0007; transform: translate(-50%, -50%); pointer-events: auto; }
 .set-background:hover:not(:disabled) { background: #a2ecfb; transform: translate(-50%, calc(-50% - 1px)); }
 .wallpaper-meta { display: grid; gap: .28rem; padding: .72rem; }
 .wallpaper-meta strong { color: #eef7ff; font-size: .78rem; }

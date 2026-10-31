@@ -35,15 +35,13 @@
 > [!WARNING]
 > 本部署配置会公开 Web 管理界面和管理 API，不显示登录窗口。它需要 Docker socket；启用 VM 图标时还需要读写 libvirt socket，该 socket 等同完整虚拟机管理权限。公开到互联网前，请先在外层配置反向代理、VPN、防火墙或身份认证。
 
-## v0.1.29 更新
+## v0.1.30 更新
 
-- 重构控制台 UI：紧凑图标轨道、平面数据面板、统一 1px 选中标线和更清晰的批量操作层级。
-- 完善桌面与移动端响应式导航，去除装饰性玻璃效果和 Emoji 图标。
-- 壁纸预览改用受限尺寸 WebP，图库图片启用懒加载与异步解码，降低内存占用。
-- 公开模式直接进入管理控制台，移除登录窗口、令牌校验和局域网白名单限制。
-- 保留容器右键菜单、图标修复、启动/重启确认与审计回滚功能。
+- 修复壁纸设置背景按钮在触屏和未悬停时无法点击的问题。
+- 修复图标与壁纸确认删除操作无响应，以及删除当前背景后的错误反馈。
+- 修复无访问模式的 Docker bind mount 在容器重建时被误判为 named volume 的问题。
 
-完整记录见 [CHANGELOG.md](CHANGELOG.md)，安装包见 [v0.1.29 Release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.29)。
+完整记录见 [CHANGELOG.md](CHANGELOG.md)，安装包见 [v0.1.30 Release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.30)。
 
 ## 功能
 
@@ -110,7 +108,7 @@ docker pull waning/unraid-icon-manager:latest
 ```yaml
 services:
   unraid-icon-manager:
-    image: waning/unraid-icon-manager:v0.1.29
+    image: waning/unraid-icon-manager:v0.1.30
     container_name: unraid-icon-manager
 
     ports:
@@ -189,7 +187,7 @@ docker compose up -d
 curl http://你的_UNRAID_IP:8787/api/health
 ```
 
-正常结果为 `{ "ok": true, "version": "0.1.29" }`。健康检查不再泄露宿主机挂载状态；打开 Web UI 即可确认 Docker、模板与 VM 连接状态。
+正常结果为 `{ "ok": true, "version": "0.1.30" }`。健康检查不再泄露宿主机挂载状态；打开 Web UI 即可确认 Docker、模板与 VM 连接状态。
 
 #### Compose 服务字段逐项说明
 

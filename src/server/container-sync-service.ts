@@ -132,7 +132,10 @@ function createOptionsFromInspect(info: any, icon: string | null): Record<string
   if (icon === null) delete config.Labels[ICON_LABEL];
   else config.Labels[ICON_LABEL] = icon;
   const hostConfig = structuredClone(info.HostConfig ?? {});
-  const bindTargets = new Set<string>((hostConfig.Binds ?? []).map((bind: string) => bind.split(":").at(-2) ?? ""));
+  const bindTargets = new Set<string>((hostConfig.Binds ?? []).map((bind: string) => {
+    const parts = bind.split(":");
+    return parts.length >= 3 ? parts.at(-2) ?? "" : parts.at(-1) ?? "";
+  }));
   const preservedVolumes = (info.Mounts ?? [])
     .filter((mount: any) => mount.Type === "volume" && mount.Name && !bindTargets.has(mount.Destination))
     .map((mount: any) => ({ Type: "volume", Source: mount.Name, Target: mount.Destination, ReadOnly: !mount.RW }));

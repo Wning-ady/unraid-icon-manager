@@ -22,15 +22,13 @@ Bulk-manage icons for **currently deployed** Unraid Docker containers from a sma
 > [!WARNING]
 > This deployment profile exposes the Web UI and management APIs without a login window. It has narrowly scoped write access to Docker Manager templates, icon caches, and the configured Compose Manager projects folder. A Docker socket remains highly sensitive even when mounted `:ro`; put a reverse proxy, VPN, firewall, or identity layer in front of port 8787 before exposing it publicly.
 
-## What's new in v0.1.29
+## What's new in v0.1.30
 
-- Reworked the console UI with a compact icon rail, flat data panels, consistent 1px selection marks, and clearer bulk actions.
-- Improved desktop and mobile navigation while removing decorative glass layers and emoji controls.
-- Switched wallpaper previews to bounded WebP and enabled lazy, asynchronous gallery image decoding to reduce memory use.
-- Public mode now opens the management console directly without a login window, token gate, or network allowlist.
-- Preserved container context actions, icon repair, confirmed start/restart flows, and audit rollback.
+- Fixed the wallpaper background action being inaccessible before hover and on touch devices.
+- Fixed icon and wallpaper confirmation-delete clicks, plus stale feedback after deleting the active background.
+- Prevented container recreation from duplicating named volumes when a bind mount omits its access mode.
 
-See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.29 release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.29) for installation assets.
+See [CHANGELOG.md](CHANGELOG.md) for the history and the [v0.1.30 release](https://github.com/Wning-ady/unraid-icon-manager/releases/tag/v0.1.30) for installation assets.
 
 ## Features
 
@@ -127,10 +125,10 @@ Compose deployment values are written directly in [`docker-compose.yml`](docker-
 
 ## Publishing
 
-Push a tag such as `v0.1.29` to publish these Docker Hub tags through GitHub Actions:
+Push a tag such as `v0.1.30` to publish these Docker Hub tags through GitHub Actions:
 
 - `waning/unraid-icon-manager:latest`
-- `waning/unraid-icon-manager:v0.1.29`
+- `waning/unraid-icon-manager:v0.1.30`
 - `waning/unraid-icon-manager:v0.1`
 
 The repository owner must configure `DOCKERHUB_USERNAME=waning` and a `DOCKERHUB_TOKEN` GitHub Actions secret. Credentials are not stored in this repository.

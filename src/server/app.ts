@@ -385,7 +385,7 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
   });
   app.delete("/api/wallpapers/:fileName", async (request, reply) => {
     try { const fileName = (request.params as { fileName: string }).fileName; await deleteWallpaper(config, fileName); database.removeWallpaper(fileName); return reply.code(204).send(); }
-    catch (error) { return reply.code(400).send(httpError(error)); }
+    catch (error) { const detail = httpError(error); return reply.code(detail.statusCode).send(detail); }
   });
   app.get("/api/wallpapers/file/:fileName", async (request, reply) => {
     const fileName = (request.params as { fileName: string }).fileName;
