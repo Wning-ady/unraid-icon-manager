@@ -89,6 +89,14 @@ export class AppDatabase {
     }
   }
 
+  removeIconGroup(id: number): void {
+    const remove = this.database.transaction(() => {
+      this.database.prepare("UPDATE icon_assets SET group_id = NULL WHERE group_id = ?").run(id);
+      return this.database.prepare("DELETE FROM icon_groups WHERE id = ?").run(id);
+    });
+    if (remove().changes === 0) throw new Error("图标分组不存在");
+  }
+
   setIconGroup(fileName: string, groupId: number | null): void {
     if (groupId !== null && !this.database.prepare("SELECT 1 FROM icon_groups WHERE id = ?").get(groupId)) throw new Error("图标分组不存在");
     this.database.prepare("INSERT INTO icon_assets (file_name, group_id) VALUES (?, ?) ON CONFLICT(file_name) DO UPDATE SET group_id = excluded.group_id").run(fileName, groupId);
@@ -134,6 +142,14 @@ export class AppDatabase {
       if (error?.code === "SQLITE_CONSTRAINT_UNIQUE") throw new Error("已经存在同名壁纸分组", { cause: error });
       throw error;
     }
+  }
+
+  removeWallpaperGroup(id: number): void {
+    const remove = this.database.transaction(() => {
+      this.database.prepare("UPDATE wallpaper_assets SET group_id = NULL WHERE group_id = ?").run(id);
+      return this.database.prepare("DELETE FROM wallpaper_groups WHERE id = ?").run(id);
+    });
+    if (remove().changes === 0) throw new Error("壁纸分组不存在");
   }
 
   setWallpaperGroup(fileName: string, groupId: number | null): void {

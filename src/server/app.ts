@@ -223,6 +223,14 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       return reply.code(201).send(database.addIconGroup(body.name));
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
+  app.delete("/api/icon-groups/:id", async (request, reply) => {
+    try {
+      const id = Number((request.params as { id: string }).id);
+      if (!Number.isInteger(id) || id < 1) throw new Error("图标分组编号无效");
+      database.removeIconGroup(id);
+      return reply.code(204).send();
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
   app.get("/api/icons", async (request) => listStoredIcons(config, publicBaseUrl(config, request), database.iconGroupMap(), database.iconDisplayNameMap()));
 
   app.patch("/api/icons/:fileName", async (request, reply) => {
@@ -340,6 +348,14 @@ export function createApp(config: AppConfig, dependencies: { listManagedContaine
       const body = request.body as { name?: unknown };
       if (typeof body?.name !== "string") throw new Error("分组名称不能为空");
       return reply.code(201).send(database.addWallpaperGroup(body.name));
+    } catch (error) { return reply.code(400).send(httpError(error)); }
+  });
+  app.delete("/api/wallpaper-groups/:id", async (request, reply) => {
+    try {
+      const id = Number((request.params as { id: string }).id);
+      if (!Number.isInteger(id) || id < 1) throw new Error("壁纸分组编号无效");
+      database.removeWallpaperGroup(id);
+      return reply.code(204).send();
     } catch (error) { return reply.code(400).send(httpError(error)); }
   });
   app.get("/api/wallpapers", async (request) => listWallpaperFiles(config, publicBaseUrl(config, request), database.wallpaperGroupMap(), database.wallpaperDisplayNameMap()));

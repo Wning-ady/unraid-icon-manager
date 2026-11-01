@@ -104,6 +104,30 @@ test("creates icon groups, uploads into a group and moves icons", async () => {
     assert.equal(icons[0].displayName, "常用图标");
     const invalid = await app.inject({ method: "PATCH", url: `/api/icons/${fileName}`, payload: { groupId: 9999 } });
     assert.equal(invalid.statusCode, 400);
+    const removedGroup = await app.inject({ method: "DELETE", url: `/api/icon-groups/${groupId}` });
+    assert.equal(removedGroup.statusCode, 204);
+    assert.deepEqual((await app.inject({ method: "GET", url: "/api/icon-groups" })).json(), []);
+    icons = (await app.inject({ method: "GET", url: "/api/icons", headers: { host: "unraid:8787" } })).json();
+    assert.equal(icons[0].groupId, null);
+  } finally { await app.close(); }
+});
+
+test("deletes wallpaper groups without deleting their assets", async () => {
+  const { app, config, png } = await fixture();
+  try {
+    const group = await app.inject({ method: "POST", url: "/api/wallpaper-groups", payload: { name: "待删除" } });
+    assert.equal(group.statusCode, 201);
+    const groupId = group.json().id as number;
+    const uploaded = await app.inject({ method: "POST", url: "/api/wallpapers/upload", payload: { contentBase64: png.toString("base64"), groupId } });
+    assert.equal(uploaded.statusCode, 201);
+    const fileName = uploaded.json().fileName as string;
+    const removedGroup = await app.inject({ method: "DELETE", url: `/api/wallpaper-groups/${groupId}` });
+    assert.equal(removedGroup.statusCode, 204);
+    assert.deepEqual((await app.inject({ method: "GET", url: "/api/wallpaper-groups" })).json(), []);
+    const wallpapers = (await app.inject({ method: "GET", url: "/api/wallpapers", headers: { host: "unraid:8787" } })).json();
+    assert.equal(wallpapers[0].fileName, fileName);
+    assert.equal(wallpapers[0].groupId, null);
+    await access(join(config.wallpapersDir, fileName));
   } finally { await app.close(); }
 });
 
