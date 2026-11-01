@@ -151,6 +151,9 @@ export function App() {
   const [pendingIconDelete, setPendingIconDelete] = useState("");
   const [pendingWallpaperDelete, setPendingWallpaperDelete] = useState("");
   const [wallpaperUrl, setWallpaperUrl] = useState("");
+  const [wallpaperQuery, setWallpaperQuery] = useState("");
+  const [wallpaperSort, setWallpaperSort] = useState<"newest" | "oldest" | "largest">("newest");
+  const [wallpaperResolution, setWallpaperResolution] = useState("all");
   const [newGroupName, setNewGroupName] = useState("");
   const [newIconGroupName, setNewIconGroupName] = useState("");
   const [selectedIconGroup, setSelectedIconGroup] = useState<number | "all" | "none">("all");
@@ -215,7 +218,23 @@ export function App() {
   const linkedCount = containers.filter((container) => container.templateState !== "will-create").length;
   const runningCount = containers.filter((container) => container.state.toLowerCase() === "running").length;
   const stoppedCount = containers.filter((container) => container.state.toLowerCase() === "exited").length;
-  const filteredWallpapers = wallpapers.filter((asset) => selectedWallpaperGroup === "all" || (selectedWallpaperGroup === "none" ? asset.groupId === null : asset.groupId === selectedWallpaperGroup));
+  const filteredWallpapers = useMemo(() => wallpapers
+    .filter((asset) => selectedWallpaperGroup === "all" || (selectedWallpaperGroup === "none" ? asset.groupId === null : asset.groupId === selectedWallpaperGroup))
+    .filter((asset) => `${asset.displayName ?? ""} ${asset.fileName} ${asset.width}x${asset.height}`.toLowerCase().includes(wallpaperQuery.trim().toLowerCase()))
+    .filter((asset) => {
+      const longestSide = Math.max(asset.width, asset.height);
+      if (wallpaperResolution === "4k") return longestSide >= 3840;
+      if (wallpaperResolution === "2k") return longestSide >= 2560 && longestSide < 3840;
+      if (wallpaperResolution === "hd") return longestSide < 2560;
+      if (wallpaperResolution === "portrait") return asset.height > asset.width;
+      return true;
+    })
+    .sort((first, second) => wallpaperSort === "oldest"
+      ? first.createdAt.localeCompare(second.createdAt)
+      : wallpaperSort === "largest"
+        ? (second.width * second.height) - (first.width * first.height)
+        : second.createdAt.localeCompare(first.createdAt)),
+  [wallpapers, selectedWallpaperGroup, wallpaperQuery, wallpaperResolution, wallpaperSort]);
   const filteredIcons = gallery.filter((asset) => selectedIconGroup === "all" || (selectedIconGroup === "none" ? asset.groupId === null : asset.groupId === selectedIconGroup));
   const iconTargetName = typeof selectedIconGroup === "number" ? iconGroups.find((group) => group.id === selectedIconGroup)?.name ?? "未分类" : "未分类";
   const wallpaperTargetName = typeof selectedWallpaperGroup === "number" ? wallpaperGroups.find((group) => group.id === selectedWallpaperGroup)?.name ?? "未分类" : "未分类";
@@ -573,6 +592,7 @@ export function App() {
 
   return <div className="app-shell">
     <div className="wallpaper-backdrop" aria-hidden="true" />
+    {page === "wallpapers" && <div className="wallpaper-dock" role="search" aria-label="筛选壁纸"><input aria-label="搜索壁纸" value={wallpaperQuery} placeholder="搜索壁纸" onChange={(event) => setWallpaperQuery(event.target.value)} /><select aria-label="壁纸排序" value={wallpaperSort} onChange={(event) => setWallpaperSort(event.target.value as typeof wallpaperSort)}><option value="newest">最新</option><option value="oldest">最早</option><option value="largest">分辨率优先</option></select><select aria-label="壁纸分组筛选" value={selectedWallpaperGroup} onChange={(event) => setSelectedWallpaperGroup(event.target.value === "all" || event.target.value === "none" ? event.target.value : Number(event.target.value))}><option value="all">全部分组</option><option value="none">未分类</option>{wallpaperGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select><select aria-label="壁纸清晰度筛选" value={wallpaperResolution} onChange={(event) => setWallpaperResolution(event.target.value)}><option value="all">所有尺寸</option><option value="4k">4K 及以上</option><option value="2k">2K</option><option value="hd">HD</option><option value="portrait">竖屏</option></select><span className="wallpaper-dock-count">{filteredWallpapers.length}</span></div>}
     <div className="mac-window">
     <header className="mac-titlebar" aria-label="应用标题栏">
       <div className="mac-title"><img src="/project-icon.png" alt="" /> <span>Unraid Icon Studio</span><small>管理控制台</small></div>
